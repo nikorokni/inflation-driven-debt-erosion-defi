@@ -1,0 +1,381 @@
+%!TEX TS-program = pdflatex
+\PassOptionsToPackage{a4paper,margin=1in}{geometry}
+\documentclass[sn-vancouver,Numbered]{sn-jnl}
+
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{multirow}
+\usepackage{tabularx}
+\usepackage{threeparttable}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+
+\newcommand{\usd}{\text{USD}}
+\newcommand{\lcu}{\text{LCU}}
+\newcommand{\dai}{\text{DAI}}
+
+\begin{document}
+
+\title[Inflation-Driven Debt Erosion in DeFi]{Inflation-Driven Debt Erosion in Local-Currency DeFi Lending: Counterfactual Evidence from MakerDAO ETH-A Borrowing Activity}
+
+\author*[1]{\fnm{Niko} \sur{Rokni Lamouki}}
+\email{niko.rokni@gmail.com}
+\author[1]{\fnm{Salma} \sur{Soofiyan}}
+\author[1]{\fnm{Amin} \sur{Karami}}
+
+\affil*[1]{\orgdiv{School of Architecture, Computing and Engineering},
+\orgname{University of East London},
+\orgaddress{\street{Docklands Campus}, \city{London}, \postcode{E16 2RD},
+\country{United Kingdom}}}
+
+\maketitle
+
+\begin{abstract}
+Local-currency stablecoins could permit overcollateralised borrowing in a unit that depreciates against the collateral numeraire. Whether this creates a material borrower-side advantage after costs and liquidation risk is an empirical question. We construct a reproducible counterfactual that maps 130,742 public MakerDAO ETH-A debt-draw events from January 2020 to July 2023 into hypothetical Argentine-peso (ARS) and Turkish-lira (TRY) debt positions. Official monthly exchange-rate series from OECD Main Economic Indicators, distributed by FRED, determine the USD-equivalent repayment burden at fixed 3-, 6-, 12-, and 24-month horizons. At 12 months, the median gross FX-driven debt-erosion benefit is 24.61\% for ARS and 25.30\% for TRY. Under a 20\% annual borrowing rate, a 0.5\% protocol fee, 0.3\% conversion cost in each direction, and USD 40 round-trip gas, the median pre-liquidation net benefit falls to 2.78\% and 6.71\%, respectively; 62.05\% of ARS and 57.27\% of TRY event-position mappings remain positive. A terminal collateral-shock screen shows that this advantage can be substantially reduced by crypto-collateral liquidation. These estimates are counterfactual, not realised trading returns: MakerDAO denominates debt in DAI, and no ARS- or TRY-pegged version of the analysed positions is observed. The results identify conditions under which depreciation may exceed financing costs while also showing why collateral policy, dynamic rates, oracle design, and loss absorption are central to protocol viability.
+
+\keywords{Decentralized finance \and Local-currency stablecoins \and Inflation \and Currency depreciation \and MakerDAO \and Counterfactual analysis \and Liquidation risk}
+\end{abstract}
+
+\section{Introduction}\label{sec:introduction}
+
+Overcollateralised decentralized-finance (DeFi) lending replaces borrower screening with transparent collateral rules, oracle prices, and automatic liquidation \cite{Schar2021,Werner2022}. Most large protocols denominate debt in USD-linked assets. A different incentive appears if the liability is denominated in a high-inflation local currency while collateral is USD-linked or crypto-denominated: the same nominal local-currency debt may require fewer US dollars to repurchase after depreciation. This is the foreign-exchange counterpart of nominal debt erosion under negative ex post real rates \cite{Fisher1933,Reinhart2015}.
+
+The observation does not by itself establish an exploitable return. Borrowing rates may adjust, entry and exit trades are costly, small positions face fixed gas costs, collateral may fall, and a local-currency token may lose its peg or liquidity. Stablecoin research has examined peg design and fragility \cite{Lyons2023,KlagesMundt2022,GortonZhang2023}; DeFi research has analysed protocol mechanics and liquidation risk \cite{Gudgeon2020Funds,Gudgeon2020Crisis,Werner2022}. However, these literatures do not provide an event-level, cost-adjusted counterfactual for local-currency DeFi debt under observed high-depreciation paths.
+
+This paper addresses four research questions:
+\begin{description}
+  \item[RQ1] How large is the gross USD-equivalent debt-erosion effect when historical DeFi debt draws are mapped to ARS- and TRY-denominated liabilities at fixed repayment horizons?
+  \item[RQ2] Does the effect remain positive after plausible borrowing rates, protocol fees, conversion costs, and gas costs?
+  \item[RQ3] Under plausible collateral shocks and liquidation conditions, does the debt-erosion effect remain economically meaningful?
+  \item[RQ4] What protocol-design and solvency implications arise when debt is denominated in a high-inflation local currency while collateral is USD-linked or crypto-denominated?
+\end{description}
+
+The paper makes four contributions corresponding to these questions. First, it supplies a reproducible event-level mapping from public MakerDAO activity to hypothetical local-currency debt. Second, it reports gross results at prespecified 3-, 6-, 12-, and 24-month horizons and a restricted observed-duration robustness test. Third, it incorporates rate, fee, execution-cost, and collateral-stress sensitivity. Fourth, it sets out the balance-sheet, peg, and loss-allocation implications that the borrower calculation creates for a hypothetical issuer. These contributions are deliberately narrower than a claim that such a protocol has been implemented or validated.
+
+\section{Related Work and Research Gap}\label{sec:related}
+
+\subsection{DeFi lending and liquidation}
+
+DeFi lending protocols create secured on-chain credit using smart contracts rather than identity-based underwriting. Sch\"ar \cite{Schar2021} describes the composable architecture of DeFi, while Gudgeon et al. \cite{Gudgeon2020Funds} compare the interest-rate mechanisms of protocols for loanable funds. Werner et al. \cite{Werner2022} systematise risks across the DeFi stack. Empirical analyses of market stress show that liquidation and oracle mechanisms can transmit shocks rather than merely protect individual positions \cite{Gudgeon2020Crisis,Kjaer2021}. These studies establish the relevant risk mechanisms but do not change the debt unit from a USD-linked token to a high-inflation currency.
+
+\subsection{Stablecoin pricing and solvency}
+
+Stablecoins differ in issuer, reserve, collateral, and redemption structure. Lyons and Viswanath-Natraj \cite{Lyons2023} show the importance of arbitrage and market liquidity for stablecoin prices. Klages-Mundt and Minca \cite{KlagesMundt2022} formalise risks of stablecoin designs, and Gorton and Zhang \cite{GortonZhang2023} emphasise run-like fragility and the institutional role of backing. MakerDAO's core accounting contract records collateral and normalised debt, with fees accumulated through a collateral-type rate \cite{MakerVatDocs}. These contributions motivate our protocol-risk analysis, but their principal focus is peg stability rather than depreciation of the liability unit.
+
+\subsection{Inflation, debt erosion, and emerging-market exposure}
+
+Fisher's separation of nominal and real interest rates provides the baseline condition under which inflation erodes real debt \cite{Fisher1933}. Reinhart and Sbrancia \cite{Reinhart2015} document how negative real rates can liquidate public debt. Cryptoassets and stablecoins may be attractive in emerging markets but also add currency substitution, capital-flow, and financial-stability risks \cite{BIS2023,Aramonte2021}. Our analysis connects this macroeconomic debt-erosion mechanism to programmable, collateralised debt.
+
+\begin{table*}[t]
+\caption{Positioning relative to representative literature.}\label{tab:literature}
+\centering
+\small
+\begin{tabularx}{\textwidth}{p{2.8cm}p{2.4cm}p{2.3cm}p{2.3cm}X}
+\toprule
+Study & Primary setting & Empirical on-chain data & Local-currency debt & Main limitation for this question \\
+\midrule
+Sch\"ar \cite{Schar2021} & DeFi architecture & No & No & Conceptual infrastructure overview \\
+Gudgeon et al. \cite{Gudgeon2020Funds} & DeFi loan markets & Protocol data & No & USD/crypto loan-market mechanisms \\
+Lyons and Viswanath-Natraj \cite{Lyons2023} & Stablecoin pricing & Market data & No & Peg pricing rather than debt erosion \\
+Klages-Mundt and Minca \cite{KlagesMundt2022} & Stablecoin risk & Analytical model & No & Design risk without event-level borrowing counterfactual \\
+Reinhart and Sbrancia \cite{Reinhart2015} & Fiat public debt & Macroeconomic data & Yes & No smart-contract collateral or liquidation \\
+This study & Collateralised DeFi debt & 130,742 debt draws & Counterfactual ARS/TRY & No observed local-currency protocol outcomes \\
+\bottomrule
+\end{tabularx}
+\end{table*}
+
+Table~\ref{tab:literature} makes the gap precise. The novelty is not a new statement of the Fisher effect. It is an auditable mapping between on-chain borrowing-event timing and size, official FX paths, financing costs, and collateral constraints.
+
+\section{System Model and Economic Mechanism}\label{sec:model}
+
+Consider a hypothetical vault protocol that accepts collateral valued in USD and issues a stablecoin pegged to one unit of local currency (LCU). A borrower deposits collateral, draws LCU debt, sells or uses the token, and later acquires LCU tokens to repay. Oracles update the LCU/USD and collateral/USD prices. A liquidation engine sells collateral when the collateral ratio falls below a governance parameter.
+
+\begin{figure*}[t]
+\centering
+\resizebox{0.88\textwidth}{!}{%
+\begin{tikzpicture}[
+node distance=1.4cm and 2.1cm,
+box/.style={draw,rounded corners,align=center,minimum height=1.0cm,minimum width=3.1cm,fill=gray!7},
+arr/.style={-{Latex[length=2mm]},thick}]
+\node[box] (borrower) {Borrower\\USD-linked or crypto collateral};
+\node[box,right=of borrower] (vault) {Vault accounting\\LCU debt and collateral ratio};
+\node[box,right=of vault] (token) {LCU stablecoin market\\mint, transfer, repay};
+\node[box,below left=of vault] (liquidator) {Price oracles and liquidators\\valuation and collateral sale};
+\node[box,below right=of vault] (governance) {Governance and reserves\\rates, ceilings, loss absorption};
+\draw[arr] (borrower) -- (vault);
+\draw[arr] (vault) -- (token);
+\draw[arr] (liquidator) -- (vault);
+\draw[arr] (governance) -- (vault);
+\end{tikzpicture}%
+}
+\caption{Minimal system context for the counterfactual local-currency vault. The empirical analysis evaluates the borrower's USD-equivalent liability; it does not implement these contracts.}\label{fig:architecture}
+\end{figure*}
+
+Let $P_i$ be the USD value of event $i$ at origination, and let $E_{i,0}$ and $E_{i,h}$ denote LCU per USD at origination and repayment horizon $h$. The hypothetical nominal debt issued at origination is $L_i=P_iE_{i,0}$. With no financing cost, its repayment value in USD is $L_i/E_{i,h}=P_iE_{i,0}/E_{i,h}$. Gross FX-driven debt erosion is therefore
+\begin{equation}
+B^{G}_{i,h}=P_i\left(1-\frac{E_{i,0}}{E_{i,h}}\right), \qquad
+b^{G}_{i,h}=1-\frac{E_{i,0}}{E_{i,h}}.
+\label{eq:gross}
+\end{equation}
+The measure is positive when the local currency depreciates against the dollar. We call it a \emph{benefit} rather than profit because it excludes collateral opportunity cost, tax, market impact, and unobserved borrower behaviour.
+
+\section{Data and Empirical Design}\label{sec:data}
+
+\subsection{MakerDAO event data}
+
+The on-chain source is the public replication archive accompanying Chaleenutthawut et al. \cite{Chaleenutthawut2024}. The archive contains 4,466,880 successful traces to the MakerDAO \texttt{Vat} core-accounting contract, extracted from Google BigQuery for 12 November 2019 through 31 July 2023. The published query selects the Vat address, excludes reverted calls, orders traces by block and transaction position, and omits top-level calls with null trace addresses. We decode documented \texttt{fold}, \texttt{frob}, \texttt{grab}, and \texttt{fork} call signatures \cite{MakerVatDocs}.
+
+For collateral type ETH-A, a borrowing event is a successful \texttt{Vat.frob} call with positive signed \texttt{dart}; it can be a first debt draw or additional borrowing from an existing vault. It is not a vault-opening event and not necessarily a unique person. DAI debt change equals normalised debt change multiplied by the collateral type's accumulated \texttt{rate}. The \texttt{urn} is reported as a vault-level identifier; we do not equate it with a verified real-world borrower. Event records contain transaction hashes so individual observations can be audited.
+
+\begin{table}[t]
+\caption{Transparent sample construction.}\label{tab:sample}
+\centering
+\small
+\begin{tabular}{lr}
+\toprule
+Stage & Count \\
+\midrule
+Raw successful Vat call traces & 4,466,880 \\
+Decoded ETH-A debt-changing events & 229,224 \\
+Positive ETH-A \texttt{frob} debt draws & 137,426 \\
+Excluded before 1 January 2020 & 6,527 \\
+Excluded below 1 DAI after date filter & 157 \\
+Final debt-draw event sample & 130,742 \\
+Unique ETH-A urn identifiers & 16,846 \\
+Clean single-draw repaid lifecycles & 7,947 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:sample} replaces the former untraceable 1,000/981-event counts. The analysis window begins on 1 January 2020 and ends at the public archive boundary on 31 July 2023. Debt adjustments below 1 DAI are excluded as economically de minimis and to prevent fixed gas costs from creating near-singular percentage outcomes. No April 2026 repayment endpoint is used.
+
+\begin{table*}[t]
+\caption{Final event-sample description.}\label{tab:description}
+\centering
+\small
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lrrrrrrrr}
+\toprule
+Events & Urns & Total DAI & Mean & Median & Std. dev. & Minimum & Maximum & Dates \\
+\midrule
+130,742 & 16,846 & 13.318 bn & 101,865 & 4,792 & 1,523,003 & 1 & 150.450 m & 2020-01-01--2023-07-31 \\
+\bottomrule
+\end{tabular}
+}
+\begin{minipage}{0.96\textwidth}\footnotesize
+\emph{Notes:} Values other than counts and dates are DAI. All events are ETH-A positive-debt \texttt{frob} calls. The strong right skew motivates medians and amount-weighted estimates alongside unweighted means. Liquidation and closure are not attributes of every draw event; a conservative lifecycle subset is analysed separately.
+\end{minipage}
+\end{table*}
+
+\subsection{Foreign-exchange data}
+
+We use official monthly-average exchange rates from OECD Main Economic Indicators, distributed by the Federal Reserve Bank of St. Louis (FRED). The identifiers are \texttt{ARGCCUSMA02STM} for ARS per USD and \texttt{CCUSMA02TRM618N} for TRY per USD \cite{FREDARS,FREDTRY}. Both series are expressed as national-currency units per US dollar. Month $t+h$ is matched by calendar month; no interpolation is needed for eligible events. The data and source files are included in the replication package.
+
+The ARS series is an official rate and may diverge from parallel-market rates under capital controls. Consequently, results describe the selected official-rate counterfactual, not the price at which every user could transact. As a timing robustness check, we combine adjacent months adversely for the borrower: the highest of $t-1,t,t+1$ is used at origination and the lowest of $t+h-1,t+h,t+h+1$ at repayment.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.78\textwidth]{figures/figure2.png}
+\caption{Official monthly-average local-currency units per US dollar. The vertical axis is logarithmic. Source: OECD Main Economic Indicators via FRED.}\label{fig:fx}
+\end{figure*}
+
+\subsection{Fixed horizons, net benefits, and weighting}
+
+Every event is evaluated at fixed 3-, 6-, 12-, and 24-month repayment horizons. This removes the former comparison of events with different terminal dates and ensures that $E_{i,0}=E_{i,h}$ mechanically yields zero gross benefit. Let $r$ be the annual borrowing rate, $T=h/12$, $f$ a protocol fee on discounted principal, $s$ the proportional conversion cost in each direction, and $g$ round-trip gas in USD. The model implemented in code is
+\begin{align}
+D_{i,h}(r) &= P_i\frac{E_{i,0}}{E_{i,h}}(1+r)^T,\\
+C_{i,h} &= fP_i\frac{E_{i,0}}{E_{i,h}} + sP_i + sD_{i,h}(r) + g,\\
+B^{N}_{i,h}(r) &= P_i-D_{i,h}(r)-C_{i,h}.
+\label{eq:net}
+\end{align}
+The base case sets $f=0.5\%$, $s=0.3\%$ each way, $g=\$40$, and evaluates $r\in\{5,10,20,40,80,120\}\%$. Low and high execution-cost cases are $(f,s,g)=(0\%,0.1\%,\$10)$ and $(1\%,1\%,\$100)$. These are transparent scenarios, not estimates of a deployed local-currency protocol.
+
+We report (i) the median event-level percentage, (ii) the share of event-position mappings with positive benefits, and (iii) an amount-weighted aggregate, $\sum_i B_i/\sum_iP_i$. The unweighted mean is also retained in the output files but is sensitive to fixed gas applied to small draws.
+
+\subsection{Lifecycle and collateral-risk robustness}
+
+The archive excludes top-level calls. A complete historical debt path therefore cannot be guaranteed for every urn. We reconstruct spells and retain only internally consistent, single-draw, single-repayment, non-liquidated, non-forked lifecycles for the observed-duration robustness test. This is a restricted check, not a representative survival estimate.
+
+The collateral screen evaluates a 12-month horizon at $r=20\%$. Initial collateral ratios are 150\%, 175\%, and 200\%; the liquidation threshold is 150\%; penalties are 5\%, 10\%, and 13\%; and terminal crypto-collateral shocks are 10\%, 25\%, 40\%, and 60\%. A USD-stablecoin collateral benchmark has a zero price shock. A position is flagged when stressed collateral divided by modeled debt service is below the threshold. The penalty is deducted from the borrower benefit. The test is deliberately static and does not model within-horizon price paths, auction slippage, or oracle latency.
+
+\section{Results}\label{sec:results}
+
+\subsection{Borrowing-event distribution}
+
+The final sample represents 13.318 billion DAI of positive ETH-A debt changes. Event sizes are highly right-skewed: the median is 4,792 DAI, the mean is 101,865 DAI, and the maximum is 150.45 million DAI (Table~\ref{tab:description}). Figure~\ref{fig:distribution} shows why results should not be summarised with one unweighted mean.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.7\textwidth]{figures/figure3.png}
+\caption{Distribution of event sizes after the 1 DAI threshold.}\label{fig:distribution}
+\end{figure*}
+
+\subsection{Gross FX-driven debt erosion (RQ1)}
+
+\begin{table*}[t]
+\caption{Gross FX-driven debt-erosion benefit by fixed horizon.}\label{tab:gross}
+\centering
+\small
+\begin{tabular}{lrrrrrr}
+\toprule
+Currency & Horizon & Events & Mean (\%) & Median (\%) & Positive (\%) & Amount-weighted (\%) \\
+\midrule
+ARS & 3 months  & 130,742 & 7.52 & 7.91 & 100.00 & 6.26 \\
+ARS & 6 months  & 130,742 & 13.91 & 15.28 & 100.00 & 12.69 \\
+ARS & 12 months & 130,742 & 26.03 & 24.61 & 100.00 & 28.11 \\
+ARS & 24 months & 130,742 & 52.72 & 50.72 & 100.00 & 63.67 \\
+TRY & 3 months  & 130,742 & 7.71 & 9.06 & 86.42 & 12.40 \\
+TRY & 6 months  & 130,742 & 14.42 & 13.68 & 94.63 & 21.50 \\
+TRY & 12 months & 130,742 & 30.40 & 25.30 & 100.00 & 40.83 \\
+TRY & 24 months & 130,742 & 58.46 & 57.78 & 100.00 & 60.22 \\
+\bottomrule
+\end{tabular}
+\begin{minipage}{0.94\textwidth}\footnotesize
+\emph{Notes:} Gross benefit is $100(1-E_0/E_h)$. It excludes rates, fees, transaction costs, liquidation, tax, and collateral opportunity cost. ``Positive'' is the percentage of event-position mappings above zero.
+\end{minipage}
+\end{table*}
+
+Table~\ref{tab:gross} and Figure~\ref{fig:gross} answer RQ1. The median gross effect rises monotonically with horizon, from 7.91\% to 50.72\% for ARS and from 9.06\% to 57.78\% for TRY. At 12 months the medians are similar, but the TRY distribution has a higher amount-weighted effect. These are consequences of historical event timing and official FX paths, not observed MakerDAO borrower gains.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.7\textwidth]{figures/figure4.png}
+\caption{Median gross FX-driven debt erosion at prespecified horizons.}\label{fig:gross}
+\end{figure*}
+
+\subsection{Financing and execution costs (RQ2)}
+
+\begin{table*}[t]
+\caption{Twelve-month pre-liquidation net benefit under rate sensitivity.}\label{tab:net}
+\centering
+\small
+\begin{tabular}{lrrrrrrrr}
+\toprule
+& \multicolumn{4}{c}{ARS} & \multicolumn{4}{c}{TRY} \\
+\cmidrule(lr){2-5}\cmidrule(lr){6-9}
+Rate & Mean & Median & Positive & Weighted & Mean & Median & Positive & Weighted \\
+(\%) & (\%) & (\%) & (\%) & (\%) & (\%) & (\%) & (\%) & (\%) \\
+\midrule
+5   & -0.59 & 14.60 & 87.57 & 23.60 & 4.04 & 18.19 & 82.64 & 37.05 \\
+10  & -4.30 & 10.74 & 86.26 & 19.99 & 0.55 & 14.36 & 78.33 & 34.09 \\
+20  & -11.72 & 2.78 & 62.05 & 12.78 & -6.43 & 6.71 & 57.27 & 28.15 \\
+40  & -26.56 & -13.02 & 15.11 & -1.64 & -20.39 & -8.64 & 43.66 & 16.28 \\
+80  & -56.24 & -44.92 & 4.05 & -30.48 & -48.31 & -38.62 & 28.06 & -7.45 \\
+120 & -85.91 & -76.89 & 1.75 & -59.32 & -76.23 & -68.73 & 0.00 & -31.19 \\
+\bottomrule
+\end{tabular}
+\begin{minipage}{0.94\textwidth}\footnotesize
+\emph{Notes:} Base costs are a 0.5\% protocol fee, 0.3\% conversion cost each way, and USD 40 round-trip gas. Weighted is $100\sum_i B_i^N/\sum_iP_i$.
+\end{minipage}
+\end{table*}
+
+At the base 20\% rate, median effects remain positive but much smaller: 2.78\% for ARS and 6.71\% for TRY (Table~\ref{tab:net}). Only 62.05\% and 57.27\% of event-position mappings, respectively, are positive. The negative unweighted means reflect fixed gas applied to many small events, whereas amount-weighted benefits remain 12.78\% and 28.15\%. At 40\%, both medians are negative. The median 12-month break-even annual rates are 23.85\% for ARS and 31.90\% for TRY; the full distributions are reported in the replication files.
+
+Execution costs also alter classification. At a 20\% rate, the low/base/high cost scenarios produce ARS medians of 6.49\%, 2.78\%, and $-1.57$\%, with positive shares of 82.45\%, 62.05\%, and 43.45\%. TRY medians are 9.17\%, 6.71\%, and 2.40\%, with positive shares of 64.00\%, 57.27\%, and 52.94\%. RQ2 therefore has a conditional answer: depreciation can exceed modeled costs, but the result is not robust to all rates, position sizes, and execution assumptions.
+
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.78\textwidth]{figures/figure5.png}
+\caption{Unweighted mean twelve-month net benefit before liquidation under borrowing-rate sensitivity. Fixed gas makes the mean especially conservative for small debt draws.}\label{fig:net}
+\end{figure*}
+
+\subsection{Collateral stress (RQ3)}
+
+\begin{table*}[t]
+\caption{Focused collateral screen: 12 months, 20\% rate, 175\% initial ratio, 150\% threshold, and 13\% penalty.}\label{tab:stress}
+\centering
+\small
+\begin{tabular}{llrrrr}
+\toprule
+Currency & Collateral scenario & Shock & Breach share & Mean risk-adjusted & Positive risk-adjusted \\
+& & (\%) & (\%) & benefit (\%) & positions (\%) \\
+\midrule
+ARS & USD stablecoin & 0  & 0.00  & -11.72 & 62.05 \\
+ARS & ETH & 10 & 0.00  & -11.72 & 62.05 \\
+ARS & ETH & 25 & 59.92 & -19.13 & 28.84 \\
+ARS & ETH & 40 & 94.48 & -22.86 & 22.05 \\
+ARS & ETH & 60 & 98.87 & -23.21 & 22.04 \\
+TRY & USD stablecoin & 0  & 0.00  & -6.43 & 57.27 \\
+TRY & ETH & 10 & 3.76  & -6.94 & 57.27 \\
+TRY & ETH & 25 & 53.41 & -13.30 & 46.40 \\
+TRY & ETH & 40 & 58.29 & -13.83 & 46.02 \\
+TRY & ETH & 60 & 100.00 & -17.29 & 45.99 \\
+\bottomrule
+\end{tabular}
+\begin{minipage}{0.94\textwidth}\footnotesize
+\emph{Notes:} ``Breach'' means terminal stressed collateral divided by modeled debt service is below 150\%. Risk-adjusted benefit subtracts the specified liquidation penalty; it does not model auction slippage or a full price path. BTC has the same mechanical shock grid and is available in the output file.
+\end{minipage}
+\end{table*}
+
+Crypto-collateral declines can dominate the FX benefit. In the focused 175\% collateral-ratio scenario, a 25\% ETH decline causes 59.92\% of ARS mappings and 53.41\% of TRY mappings to breach the screen (Table~\ref{tab:stress}). A stablecoin-collateral benchmark has no shock-triggered liquidation in this static test, although it retains issuer, depeg, and custody risks. Thus RQ3 is also conditional: debt erosion may be material before liquidation, but crypto-collateral stress sharply reduces its reliability.
+
+\subsection{Robustness checks}
+
+The conservative adjacent-month FX match reduces the 12-month median gross effect from 24.61\% to 21.85\% for ARS and from 25.30\% to 17.05\% for TRY; all matched positions remain positive in this historical window. This check addresses monthly timing, not the official-versus-parallel-market distinction.
+
+The clean lifecycle check contains 7,105 spells with FX coverage in each currency and a median duration of 6.95 days. Its median gross effect is zero because many spells begin and end in the same monthly observation. At a 20\% rate and base costs, only 13.19\% of ARS and 14.58\% of TRY mappings are positive. This sharply weaker result shows that the fixed 12- and 24-month horizons should be interpreted as holding-period scenarios, not as descriptions of typical observed ETH-A debt duration.
+
+\section{Protocol Solvency, Peg Sustainability, and Loss Allocation}\label{sec:solvency}
+
+The borrower's currency advantage is not free value for the system. A viable issuer must preserve both the LCU peg and sufficient collateral value. In USD terms, a stylised protocol balance sheet is
+\begin{equation}
+A_t=V_t^{\mathrm{collateral}}+R_t^{\mathrm{reserve}}-L_t^{\mathrm{auction}},
+\qquad
+Q_t=\frac{N_t^{\mathrm{LCU}}}{E_t}+B_t^{\mathrm{bad\ debt}},
+\label{eq:balance}
+\end{equation}
+where $A_t$ is realisable assets, $Q_t$ is the USD-equivalent liability plus bad debt, and solvency requires $A_t\geq Q_t$ after liquidation and market frictions. Because $N_t^{\mathrm{LCU}}/E_t$ falls when the LCU depreciates, depreciation can reduce the protocol's USD liability. However, solvency still fails if collateral losses, auction discounts, oracle errors, or stablecoin depegs reduce assets faster.
+
+\begin{table}[t]
+\caption{Risk transmission and primary loss bearer in the proposed architecture.}\label{tab:loss}
+\centering
+\small
+\begin{tabularx}{\columnwidth}{p{2.2cm}p{2.5cm}X}
+\toprule
+Shock & First mechanism & Residual loss bearer \\
+\midrule
+LCU depreciation & Lower USD debt value & Token holders if peg/redemption fails; otherwise no direct shortfall \\
+Collateral decline & Liquidation and penalty & Borrower first; protocol reserve or token holders if sale proceeds are insufficient \\
+Oracle failure & Delayed or incorrect liquidation & Protocol reserve, governance backstop, or token holders \\
+Liquidity/run shock & Peg discount and costly exits & Sellers/token holders; issuer if redemption commitments exist \\
+Governance mispricing & Rate too low or ceiling too high & Reserve/backstop and ultimately token holders \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+RQ4 follows from this balance sheet. First, the borrowing rate cannot be static in a rapidly changing inflation regime. A rule should respond to expected depreciation, peg deviation, utilisation, collateral volatility, oracle uncertainty, and reserve adequacy. Second, debt ceilings and collateral haircuts must be currency-specific. Third, an LCU peg requires credible mint/redeem or market-making channels; a numerical oracle target alone cannot create liquidity. Fourth, residual loss allocation must be explicit before launch---for example, borrower collateral, an ex ante reserve, governance-token dilution, or limited redemption. These requirements align with the broader finding that nominal stability depends on arbitrage capacity and credible backing \cite{Lyons2023,KlagesMundt2022,GortonZhang2023}.
+
+\section{Discussion}\label{sec:discussion}
+
+The evidence distinguishes a macroeconomic mechanism from a deployable strategy. For RQ1, historical official ARS and TRY paths create sizeable gross debt erosion at fixed horizons. For RQ2, costs and borrowing rates remove much of that effect, particularly for small positions. For RQ3, crypto-collateral shocks produce a material liquidation screen even when the local-currency liability depreciates. For RQ4, any issuer that markets the borrower advantage must simultaneously price the balance-sheet, peg-liquidity, oracle, and governance risks that determine who absorbs losses.
+
+The amount-weighted results are larger than the median or mean in several specifications because large draws occurred in months with stronger subsequent depreciation and are less exposed to fixed gas. This is a sample-composition result, not evidence that very large positions could trade without market impact. Conversely, the observed-duration check is weaker because many reconstructed spells are shorter than one month. Together, these results make the repayment horizon an economically substantive design variable rather than a cosmetic modeling choice.
+
+The protocol context is therefore best viewed as a design constraint around the counterfactual. A local-currency stablecoin may provide a programmable debt unit, but it does not guarantee a market, an accessible official exchange rate, or a sustainable negative real borrowing rate. A production decision would require local legal analysis, market microstructure data, redemption design, audits, and live pilot evidence beyond the present study.
+
+\section{Limitations}\label{sec:limitations}
+
+First, the outcome is counterfactual. The source events are actual MakerDAO ETH-A debt draws, but MakerDAO debt is DAI-denominated; no analysed borrower incurred ARS or TRY stablecoin debt. Second, the analysis uses one collateral type and does not claim that event timing or size would be unchanged under a local-currency protocol. Third, the public trace query excludes top-level calls, limiting lifecycle reconstruction; only a narrow internally consistent subset is used for duration robustness. Fourth, official monthly FX averages can differ from executable or parallel-market ARS rates and obscure within-month volatility. Fifth, rate, fee, gas, slippage, collateral-shock, and penalty values are scenarios rather than calibrated forecasts for a deployed protocol. Sixth, the terminal collateral test is not a path-dependent liquidation simulation and does not model auctions, MEV, congestion, or oracle latency. Seventh, we do not estimate local-stablecoin demand, peg liquidity, legal enforceability, tax, or capital-control compliance. These limitations rule out claims of realised profitability or protocol validation.
+
+\section{Conclusion}\label{sec:conclusion}
+
+Using 130,742 publicly traceable MakerDAO ETH-A debt-draw events and official ARS/USD and TRY/USD series, this study finds a sizeable historical gross debt-erosion mechanism at fixed horizons. At 12 months, median gross effects are 24.61\% and 25.30\%, but base financing and execution costs reduce the medians to 2.78\% and 6.71\%. Higher rates, fixed costs on small positions, short observed debt durations, and collateral liquidation can eliminate the effect. The central conclusion is consequently conditional: local-currency depreciation can lower a borrower's USD-equivalent repayment burden, but it is neither a realised return nor sufficient evidence that a local-currency stablecoin protocol would be solvent or maintain its peg. The replication package permits independent audit and extension to alternative currencies, costs, and risk assumptions.
+
+\section*{Data Availability}
+
+The public raw MakerDAO Vat trace archive, source query, SHA-256 checksum, decoded event files, original FRED CSV files, intermediate results, and all table inputs are provided or linked in the accompanying replication package. The raw archive originates from the public dataset accompanying Chaleenutthawut et al. \cite{Chaleenutthawut2024}. FRED series identifiers and source URLs are recorded in the package documentation.
+
+\section*{Code Availability}
+
+Python scripts decode the documented MakerDAO Vat calls and regenerate all statistics, robustness checks, tables, and figures. A requirements file and one-command reproduction instructions are included. The code does not require private keys, wallet access, or a proprietary API.
+
+\section*{Declarations}
+
+\textbf{Conflict of interest.} The authors declare no conflict of interest.\\
+\textbf{Funding.} No external funding was reported for this study.\\
+\textbf{Ethics approval.} The study uses public blockchain traces and aggregate macroeconomic series and does not involve human participants.
+
+\bibliography{references}
+
+\end{document}

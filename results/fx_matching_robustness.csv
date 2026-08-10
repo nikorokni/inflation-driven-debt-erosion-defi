@@ -1,0 +1,5 @@
+currency,specification,events,mean_gross_benefit_pct,median_gross_benefit_pct,positive_positions_pct
+ARS,Base calendar-month average,130742,26.025196950749766,24.608084931547058,100.0
+ARS,Conservative adjacent-month FX window,130742,21.986495226595878,21.851255137331883,100.0
+TRY,Base calendar-month average,130742,30.40209330042861,25.296684861802266,100.0
+TRY,Conservative adjacent-month FX window,130742,24.394076926934293,17.047956012921695,100.0

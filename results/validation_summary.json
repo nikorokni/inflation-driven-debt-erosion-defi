@@ -1,0 +1,16 @@
+{
+  "final_draw_events": 130742,
+  "unique_urns": 16846,
+  "total_borrowed_dai": 13318097854.94336,
+  "gross_result_rows": 8,
+  "net_sensitivity_rows": 48,
+  "stress_scenario_rows": 162,
+  "lifecycle_rows": 14210,
+  "cost_assumptions": {
+    "protocol_fee_fraction": 0.005,
+    "swap_slippage_fraction_each_way": 0.003,
+    "gas_usd_round_trip": 40.0
+  },
+  "all_2026_equal_fx_checks_removed": true,
+  "profit_terminology_used": false
+}
