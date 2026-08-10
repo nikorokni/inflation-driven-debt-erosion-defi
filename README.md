@@ -17,10 +17,10 @@ The paper is in `manuscript/main.tex`; the compiled version is `manuscript/main.
 - `analysis/`: event decoder and analysis/figure script.
 - `data/raw_fx/`: original FRED CSV downloads.
 - `data/processed/`: decoded analysis sample, lifecycle data, construction log, and metadata.
-- `results/`: event-level and summary outputs.
+- `results/`: summary outputs; the large event-level file is regenerated locally.
 - `figures/`: generated 300-dpi figures.
 - `tables/`: machine-generated LaTeX table fragments.
-- `manuscript/`: English LaTeX source, bibliography, class files, figures, and compiled PDF.
+- `manuscript/`: English LaTeX source with an embedded manual bibliography, class files, figures, and compiled PDF.
 - `documentation/`: exact BigQuery SQL, source provenance, and revision record.
 
 ## Environment
@@ -40,6 +40,8 @@ bash run_all.sh /path/to/Data_July_2023.zip
 ```
 
 The script uses the two FX CSV files already included in `data/raw_fx/`, rebuilds `data/processed/`, and regenerates `results/`, `tables/`, and `figures/`.
+
+The generated file `results/event_level_fixed_horizon_results.csv` is intentionally excluded from Git because it exceeds GitHub's normal per-file limit. Running `run_all.sh` recreates it and then synchronises the regenerated figures into `manuscript/figures/`.
 
 ## Main operational definitions
 
@@ -62,4 +64,3 @@ The raw archive query omits top-level calls (`trace_address IS NOT NULL`). There
 - Twelve-month median net benefit at the base 20% annual rate: 2.78% (ARS), 6.71% (TRY).
 
 The source checksums are in `documentation/SOURCES.md`.
-

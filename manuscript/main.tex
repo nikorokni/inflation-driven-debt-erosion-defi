@@ -9,6 +9,7 @@
 \usepackage{tabularx}
 \usepackage{threeparttable}
 \usepackage{tikz}
+\usepackage{url}
 \usetikzlibrary{arrows.meta,positioning}
 
 \newcommand{\usd}{\text{USD}}
@@ -368,7 +369,7 @@ The public raw MakerDAO Vat trace archive, source query, SHA-256 checksum, decod
 
 \section*{Code Availability}
 
-Python scripts decode the documented MakerDAO Vat calls and regenerate all statistics, robustness checks, tables, and figures. A requirements file and one-command reproduction instructions are included. The code does not require private keys, wallet access, or a proprietary API.
+Python scripts decode the documented MakerDAO Vat calls and regenerate all statistics, robustness checks, tables, and figures. A requirements file and one-command reproduction instructions are included. The code does not require private keys, wallet access, or a proprietary API. The complete replication package is publicly available at \url{https://github.com/nikorokni/inflation-driven-debt-erosion-defi}.
 
 \section*{Declarations}
 
@@ -376,6 +377,102 @@ Python scripts decode the documented MakerDAO Vat calls and regenerate all stati
 \textbf{Funding.} No external funding was reported for this study.\\
 \textbf{Ethics approval.} The study uses public blockchain traces and aggregate macroeconomic series and does not involve human participants.
 
-\bibliography{references}
+\begin{thebibliography}{99}
+
+\bibitem{Schar2021}
+Sch\"ar F.
+Decentralized finance: On blockchain- and smart contract-based financial markets.
+\textit{Federal Reserve Bank of St. Louis Review}. 2021;103(2):153--174.
+doi:10.20955/r.103.153-74.
+
+\bibitem{Werner2022}
+Werner SM, Perez D, Gudgeon L, Klages-Mundt A, Harz D, Knottenbelt WJ.
+SoK: Decentralized finance (DeFi).
+In: \textit{Proceedings of the 4th ACM Conference on Advances in Financial Technologies}. 2022. pp. 30--46.
+doi:10.1145/3558535.3559780.
+
+\bibitem{Fisher1933}
+Fisher I.
+The debt-deflation theory of great depressions.
+\textit{Econometrica}. 1933;1(4):337--357.
+doi:10.2307/1907327.
+
+\bibitem{Reinhart2015}
+Reinhart CM, Sbrancia MB.
+The liquidation of government debt.
+\textit{Economic Policy}. 2015;30(82):291--333.
+doi:10.1093/epolic/eiv003.
+
+\bibitem{Lyons2023}
+Lyons RK, Viswanath-Natraj G.
+What keeps stablecoins stable?
+\textit{Journal of International Money and Finance}. 2023;131:102777.
+doi:10.1016/j.jimonfin.2022.102777.
+
+\bibitem{KlagesMundt2022}
+Klages-Mundt A, Minca A.
+While stability lasts: A stochastic model of noncustodial stablecoins.
+\textit{Mathematical Finance}. 2022;32(4):943--981.
+doi:10.1111/mafi.12357.
+
+\bibitem{GortonZhang2023}
+Gorton GB, Zhang JY.
+Taming wildcat stablecoins.
+\textit{University of Chicago Law Review}. 2023;90(3):909--971.
+
+\bibitem{Gudgeon2020Funds}
+Gudgeon L, Werner SM, Perez D, Knottenbelt WJ.
+DeFi protocols for loanable funds: Interest rates, liquidity and market efficiency.
+In: \textit{Proceedings of the 2nd ACM Conference on Advances in Financial Technologies}. 2020. pp. 92--112.
+doi:10.1145/3419614.3423254.
+
+\bibitem{Gudgeon2020Crisis}
+Gudgeon L, Perez D, Harz D, Livshits B, Gervais A.
+The decentralized financial crisis.
+In: \textit{2020 Crypto Valley Conference on Blockchain Technology}. 2020. pp. 1--15.
+
+\bibitem{Kjaer2021}
+Kj{\ae}r M, Di Angelo M, Salzer G.
+Empirical evaluation of MakerDAO's resilience.
+In: \textit{2021 3rd Conference on Blockchain Research and Applications for Innovative Networks and Services}. 2021. pp. 193--200.
+doi:10.1109/BRAINS52497.2021.9569811.
+
+\bibitem{Chaleenutthawut2024}
+Chaleenutthawut Y, Davydov V, Evdokimov M, Kasemsuk S, Kruglik S, Melnikov G, Yanovich Y.
+Loan portfolio dataset from MakerDAO blockchain project.
+\textit{IEEE Access}. 2024;12:24843--24854.
+doi:10.1109/ACCESS.2024.3363225.
+
+\bibitem{MakerVatDocs}
+MakerDAO.
+Vat detailed documentation.
+\textit{Maker Protocol Technical Documentation}. 2020.
+Available from: \url{https://docs.makerdao.com/smart-contract-modules/core-module/vat-detailed-documentation}. Accessed 8 August 2026.
+
+\bibitem{BIS2023}
+Bank for International Settlements.
+Financial stability risks from cryptoassets in emerging market economies.
+\textit{BIS Papers}. 2023;(138).
+Available from: \url{https://www.bis.org/publ/bppdf/bispap138.htm}.
+
+\bibitem{Aramonte2021}
+Aramonte S, Huang W, Schrimpf A.
+DeFi risks and the decentralisation illusion.
+\textit{BIS Quarterly Review}. 2021;December:21--36.
+Available from: \url{https://www.bis.org/publ/qtrpdf/r_qt2112b.htm}.
+
+\bibitem{FREDARS}
+Organisation for Economic Co-operation and Development.
+National currency to US dollar exchange rate: Average of daily rates for Argentina [ARGCCUSMA02STM].
+\textit{FRED, Federal Reserve Bank of St. Louis}. 2026.
+Available from: \url{https://fred.stlouisfed.org/series/ARGCCUSMA02STM}. Accessed 8 August 2026.
+
+\bibitem{FREDTRY}
+Organisation for Economic Co-operation and Development.
+National currency to US dollar exchange rate: Average of daily rates for T{\"u}rkiye [CCUSMA02TRM618N].
+\textit{FRED, Federal Reserve Bank of St. Louis}. 2026.
+Available from: \url{https://fred.stlouisfed.org/series/CCUSMA02TRM618N}. Accessed 8 August 2026.
+
+\end{thebibliography}
 
 \end{document}

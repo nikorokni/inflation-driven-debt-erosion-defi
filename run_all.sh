@@ -23,5 +23,7 @@ python "$replication_root/analysis/reproduce_analysis.py" \
   --figure-dir "$replication_root/figures" \
   --latex-table-dir "$replication_root/tables"
 
-echo "Reproduction complete. See results/validation_summary.json."
+mkdir -p "$replication_root/manuscript/figures"
+cp "$replication_root"/figures/figure*.png "$replication_root/manuscript/figures/"
 
+echo "Reproduction complete. See results/validation_summary.json."
