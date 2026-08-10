@@ -1,0 +1,19 @@
+\begin{tabular}{lrr}
+\toprule
+parameter & values & role \\
+\midrule
+Currencies & ARS and TRY & Official LCU per USD \\
+FX source & OECD MEI via FRED & Monthly averages; no interpolation \\
+Fixed horizons & 3, 6, 12, 24 months & Calendar-month matching \\
+Annual borrowing rates & 5, 10, 20, 40, 80, 120\% & Sensitivity grid \\
+Protocol fee & 0.5\% & Base case \\
+Conversion cost & 0.3\% each way & Base case \\
+Round-trip gas & USD 40 & Base case \\
+Collateral & USD stablecoin, ETH, BTC & Counterfactual stress screen \\
+Initial collateral ratios & 150, 175, 200\% & Sensitivity grid \\
+Liquidation threshold & 150\% & Common screen \\
+Liquidation penalties & 5, 10, 13\% & Sensitivity grid \\
+Crypto price shocks & 10, 25, 40, 60\% & Terminal stress grid \\
+Expected-loss weights & 40, 30, 20, 10\% & Illustrative weights for 10, 25, 40, 60\% shocks \\
+\bottomrule
+\end{tabular}

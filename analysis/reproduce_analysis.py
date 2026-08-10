@@ -20,6 +20,13 @@ ANNUAL_RATES = (0.05, 0.10, 0.20, 0.40, 0.80, 1.20)
 COLLATERAL_RATIOS = (1.50, 1.75, 2.00)
 LIQUIDATION_PENALTIES = (0.05, 0.10, 0.13)
 LIQUIDATION_RATIO = 1.50
+CRYPTO_SHOCK_WEIGHTS = {
+    0.10: 0.40,
+    0.25: 0.30,
+    0.40: 0.20,
+    0.60: 0.10,
+}
+NEAR_LIQUIDATION_BUFFER = 1.10
 
 
 @dataclass(frozen=True)
@@ -216,6 +223,7 @@ def lifecycle_summary(lifecycles: pd.DataFrame, fx: pd.DataFrame, assumptions: C
                 "mean_gross_benefit_pct": frame["gross_benefit_pct"].mean(),
                 "median_gross_benefit_pct": frame["gross_benefit_pct"].median(),
                 "mean_net_benefit_pct_at_20pct_rate": adjusted["net_benefit_preliq_pct"].mean(),
+                "median_net_benefit_pct_at_20pct_rate": adjusted["net_benefit_preliq_pct"].median(),
                 "positive_net_positions_pct": 100.0 * (adjusted["net_benefit_preliq_usd"] > 0).mean(),
             }
         )
@@ -238,6 +246,11 @@ def collateral_stress(all_horizons: pd.DataFrame, assumptions: CostAssumptions) 
                     collateral_usd = adjusted["borrowed_dai"] * initial_cr * (1.0 - shock)
                     health_ratio = collateral_usd / adjusted["debt_service_usd"]
                     liquidated = health_ratio < LIQUIDATION_RATIO
+                    near_liquidation = (
+                        (health_ratio >= LIQUIDATION_RATIO)
+                        & (health_ratio < LIQUIDATION_RATIO * NEAR_LIQUIDATION_BUFFER)
+                    )
+                    healthy = health_ratio >= LIQUIDATION_RATIO * NEAR_LIQUIDATION_BUFFER
                     for penalty in LIQUIDATION_PENALTIES:
                         loss = np.where(liquidated, penalty * adjusted["debt_service_usd"], 0.0)
                         risk_benefit = adjusted["net_benefit_preliq_usd"] - loss
@@ -251,6 +264,8 @@ def collateral_stress(all_horizons: pd.DataFrame, assumptions: CostAssumptions) 
                                 "initial_collateral_ratio_pct": 100.0 * initial_cr,
                                 "liquidation_threshold_pct": 100.0 * LIQUIDATION_RATIO,
                                 "liquidation_penalty_pct": 100.0 * penalty,
+                                "healthy_positions_pct": 100.0 * healthy.mean(),
+                                "near_liquidation_positions_pct": 100.0 * near_liquidation.mean(),
                                 "liquidated_positions_pct": 100.0 * liquidated.mean(),
                                 "mean_risk_adjusted_benefit_pct": 100.0 * (risk_benefit / adjusted["borrowed_dai"]).mean(),
                                 "positive_risk_adjusted_positions_pct": 100.0 * (risk_benefit > 0).mean(),
@@ -258,6 +273,79 @@ def collateral_stress(all_horizons: pd.DataFrame, assumptions: CostAssumptions) 
                             }
                         )
     return pd.DataFrame(rows)
+
+
+def expected_liquidation_loss_summary(
+    all_horizons: pd.DataFrame,
+    assumptions: CostAssumptions,
+) -> pd.DataFrame:
+    """Scenario-weighted liquidation loss; weights are declared, not estimated."""
+
+    base = all_horizons[all_horizons["horizon_months"] == 12].copy()
+    rows = []
+    for currency, currency_frame in base.groupby("currency"):
+        adjusted = cost_adjusted(currency_frame, 0.20, assumptions)
+        for collateral_type in ("USD_stablecoin", "ETH", "BTC"):
+            shock_weights = {0.0: 1.0} if collateral_type == "USD_stablecoin" else CRYPTO_SHOCK_WEIGHTS
+            for initial_cr in COLLATERAL_RATIOS:
+                for penalty in LIQUIDATION_PENALTIES:
+                    expected_loss = np.zeros(len(adjusted), dtype=float)
+                    expected_breach_probability = np.zeros(len(adjusted), dtype=float)
+                    for shock, weight in shock_weights.items():
+                        collateral_usd = adjusted["borrowed_dai"] * initial_cr * (1.0 - shock)
+                        health_ratio = collateral_usd / adjusted["debt_service_usd"]
+                        breached = (health_ratio < LIQUIDATION_RATIO).to_numpy()
+                        expected_breach_probability += weight * breached
+                        expected_loss += (
+                            weight
+                            * breached
+                            * penalty
+                            * adjusted["debt_service_usd"].to_numpy()
+                        )
+                    risk_benefit = adjusted["net_benefit_preliq_usd"].to_numpy() - expected_loss
+                    principal = adjusted["borrowed_dai"].to_numpy()
+                    rows.append(
+                        {
+                            "currency": currency,
+                            "horizon_months": 12,
+                            "annual_borrow_rate_pct": 20.0,
+                            "collateral_type": collateral_type,
+                            "initial_collateral_ratio_pct": 100.0 * initial_cr,
+                            "liquidation_threshold_pct": 100.0 * LIQUIDATION_RATIO,
+                            "liquidation_penalty_pct": 100.0 * penalty,
+                            "mean_expected_breach_probability_pct": 100.0 * expected_breach_probability.mean(),
+                            "mean_expected_liquidation_loss_pct": 100.0 * np.mean(expected_loss / principal),
+                            "median_risk_adjusted_benefit_pct": 100.0 * np.median(risk_benefit / principal),
+                            "positive_risk_adjusted_positions_pct": 100.0 * np.mean(risk_benefit > 0),
+                            "value_weighted_risk_adjusted_benefit_pct": 100.0 * risk_benefit.sum() / principal.sum(),
+                        }
+                    )
+    return pd.DataFrame(rows)
+
+
+def assumptions_table(assumptions: CostAssumptions) -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            ("Currencies", "ARS and TRY", "Official LCU per USD"),
+            ("FX source", "OECD MEI via FRED", "Monthly averages; no interpolation"),
+            ("Fixed horizons", "3, 6, 12, 24 months", "Calendar-month matching"),
+            ("Annual borrowing rates", "5, 10, 20, 40, 80, 120%", "Sensitivity grid"),
+            ("Protocol fee", f"{100 * assumptions.protocol_fee_fraction:.1f}%", "Base case"),
+            ("Conversion cost", f"{100 * assumptions.swap_slippage_fraction_each_way:.1f}% each way", "Base case"),
+            ("Round-trip gas", f"USD {assumptions.gas_usd_round_trip:.0f}", "Base case"),
+            ("Collateral", "USD stablecoin, ETH, BTC", "Counterfactual stress screen"),
+            ("Initial collateral ratios", "150, 175, 200%", "Sensitivity grid"),
+            ("Liquidation threshold", f"{100 * LIQUIDATION_RATIO:.0f}%", "Common screen"),
+            ("Liquidation penalties", "5, 10, 13%", "Sensitivity grid"),
+            ("Crypto price shocks", "10, 25, 40, 60%", "Terminal stress grid"),
+            (
+                "Expected-loss weights",
+                "40, 30, 20, 10%",
+                "Illustrative weights for 10, 25, 40, 60% shocks",
+            ),
+        ],
+        columns=["parameter", "values", "role"],
+    )
 
 
 def robustness_summary(draws: pd.DataFrame, fx: pd.DataFrame) -> pd.DataFrame:
@@ -369,7 +457,7 @@ def save_figures(
     ax1.set_xticks(yearly["borrow_year"])
     ax1.set_title("ETH-A borrowing activity by year")
     fig.tight_layout()
-    fig.savefig(figure_dir / "figure6.png")
+    fig.savefig(figure_dir / "figure4.png")
     plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(7.2, 4.2))
@@ -398,7 +486,7 @@ def save_figures(
     ax.set_title("Gross debt erosion increases with holding horizon")
     ax.legend()
     fig.tight_layout()
-    fig.savefig(figure_dir / "figure4.png")
+    fig.savefig(figure_dir / "figure5.png")
     plt.close(fig)
 
     fig, axes = plt.subplots(1, 2, figsize=(8.0, 4.0), sharey=True)
@@ -411,7 +499,7 @@ def save_figures(
     axes[0].set_ylabel("Mean net benefit before liquidation (%)")
     fig.suptitle("Twelve-month net benefit after costs and fees")
     fig.tight_layout()
-    fig.savefig(figure_dir / "figure5.png")
+    fig.savefig(figure_dir / "figure6.png")
     plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(7.2, 4.2))
@@ -433,17 +521,31 @@ def save_figures(
         (stress["collateral_type"] == "ETH")
         & (stress["liquidation_penalty_pct"] == 13.0)
     ]
-    fig, axes = plt.subplots(1, 2, figsize=(8.0, 4.0), sharey=True)
-    for ax, currency in zip(axes, ("ARS", "TRY"), strict=True):
+    fig, axes = plt.subplots(2, 2, figsize=(8.0, 7.2), sharex="col")
+    for column, currency in enumerate(("ARS", "TRY")):
         subset = focus[focus["currency"] == currency]
         for ratio in (150.0, 175.0, 200.0):
             line = subset[subset["initial_collateral_ratio_pct"] == ratio]
-            ax.plot(line["collateral_shock_pct"], line["liquidated_positions_pct"], marker="o", label=f"CR {ratio:.0f}%")
-        ax.set_title(currency)
-        ax.set_xlabel("ETH price decline (%)")
-    axes[0].set_ylabel("Positions breaching liquidation threshold (%)")
-    axes[1].legend(fontsize=8)
-    fig.suptitle("Liquidation screen under collateral shocks (12 months, 20% rate)")
+            axes[0, column].plot(
+                line["collateral_shock_pct"],
+                line["liquidated_positions_pct"],
+                marker="o",
+                label=f"CR {ratio:.0f}%",
+            )
+            axes[1, column].plot(
+                line["collateral_shock_pct"],
+                line["mean_risk_adjusted_benefit_pct"],
+                marker="o",
+                label=f"CR {ratio:.0f}%",
+            )
+        axes[0, column].set_title(currency)
+        axes[0, column].axhline(0, color="black", linewidth=0.8)
+        axes[1, column].axhline(0, color="black", linewidth=0.8)
+        axes[1, column].set_xlabel("Crypto-collateral price decline (%)")
+    axes[0, 0].set_ylabel("Positions breaching threshold (%)")
+    axes[1, 0].set_ylabel("Mean risk-adjusted benefit (%)")
+    axes[0, 1].legend(fontsize=8)
+    fig.suptitle("Liquidation and risk-adjusted outcomes (12 months, 20% rate, 13% penalty)")
     fig.tight_layout()
     fig.savefig(figure_dir / "figure8.png")
     plt.close(fig)
@@ -455,25 +557,65 @@ def write_latex_tables(
     gross: pd.DataFrame,
     net: pd.DataFrame,
     stress: pd.DataFrame,
+    expected_loss: pd.DataFrame,
+    assumptions: pd.DataFrame,
     robustness: pd.DataFrame,
     lifecycle: pd.DataFrame,
     cost_sensitivity: pd.DataFrame,
     output_dir: Path,
 ) -> None:
+    def write_table(frame: pd.DataFrame, path: Path) -> None:
+        def latex_escape(value: object) -> str:
+            text = "" if pd.isna(value) else str(value)
+            text = text.replace("\\", "\0")
+            replacements = {
+                "&": r"\&",
+                "%": r"\%",
+                "$": r"\$",
+                "#": r"\#",
+                "_": r"\_",
+                "{": r"\{",
+                "}": r"\}",
+            }
+            for source, target in replacements.items():
+                text = text.replace(source, target)
+            return text.replace("\0", r"\textbackslash{}")
+
+        columns = list(frame.columns)
+        alignment = "l" + "r" * max(len(columns) - 1, 0)
+        lines = [
+            rf"\begin{{tabular}}{{{alignment}}}",
+            r"\toprule",
+            " & ".join(latex_escape(column) for column in columns) + r" \\",
+            r"\midrule",
+        ]
+        for row in frame.itertuples(index=False, name=None):
+            rendered = []
+            for value in row:
+                if isinstance(value, (float, np.floating)):
+                    rendered.append(f"{value:.2f}")
+                else:
+                    rendered.append(latex_escape(value))
+            lines.append(" & ".join(rendered) + r" \\")
+        lines.extend([r"\bottomrule", r"\end{tabular}", ""])
+        path.write_text("\n".join(lines), encoding="utf-8")
+
     output_dir.mkdir(parents=True, exist_ok=True)
-    construction.to_latex(output_dir / "table_sample_construction.tex", index=False, escape=True, float_format="%.2f")
-    descriptive.to_latex(output_dir / "table_descriptive.tex", index=False, escape=True, float_format="%.2f")
-    gross.to_latex(output_dir / "table_gross_fixed_horizons.tex", index=False, escape=True, float_format="%.2f")
+    write_table(construction, output_dir / "table_sample_construction.tex")
+    write_table(descriptive, output_dir / "table_descriptive.tex")
+    write_table(gross, output_dir / "table_gross_fixed_horizons.tex")
     net_12 = net[net["horizon_months"] == 12].copy()
-    net_12.to_latex(output_dir / "table_net_12m.tex", index=False, escape=True, float_format="%.2f")
+    write_table(net_12, output_dir / "table_net_12m.tex")
     stress_focus = stress[
         (stress["liquidation_penalty_pct"] == 13.0)
         & (stress["initial_collateral_ratio_pct"] == 175.0)
     ].copy()
-    stress_focus.to_latex(output_dir / "table_stress_focus.tex", index=False, escape=True, float_format="%.2f")
-    robustness.to_latex(output_dir / "table_robustness.tex", index=False, escape=True, float_format="%.2f")
-    lifecycle.to_latex(output_dir / "table_lifecycle.tex", index=False, escape=True, float_format="%.2f")
-    cost_sensitivity.to_latex(output_dir / "table_cost_sensitivity.tex", index=False, escape=True, float_format="%.2f")
+    write_table(stress_focus, output_dir / "table_stress_focus.tex")
+    write_table(expected_loss, output_dir / "table_expected_liquidation_loss.tex")
+    write_table(assumptions, output_dir / "table_assumptions.tex")
+    write_table(robustness, output_dir / "table_robustness.tex")
+    write_table(lifecycle, output_dir / "table_lifecycle.tex")
+    write_table(cost_sensitivity, output_dir / "table_cost_sensitivity.tex")
 
 
 def run(args: argparse.Namespace) -> dict[str, float | int | str]:
@@ -495,6 +637,8 @@ def run(args: argparse.Namespace) -> dict[str, float | int | str]:
     net, break_even = net_summary(all_horizons, assumptions)
     lifecycle = lifecycle_summary(lifecycles, fx, assumptions)
     stress = collateral_stress(all_horizons, assumptions)
+    expected_loss = expected_liquidation_loss_summary(all_horizons, assumptions)
+    assumptions_frame = assumptions_table(assumptions)
     robustness = robustness_summary(draws, fx)
     cost_sensitivity = cost_sensitivity_summary(all_horizons)
 
@@ -505,6 +649,8 @@ def run(args: argparse.Namespace) -> dict[str, float | int | str]:
         "break_even_rate_summary.csv": break_even,
         "observed_lifecycle_robustness.csv": lifecycle,
         "collateral_liquidation_stress.csv": stress,
+        "liquidation_expected_loss_summary.csv": expected_loss,
+        "assumptions_parameters.csv": assumptions_frame,
         "fx_matching_robustness.csv": robustness,
         "execution_cost_sensitivity.csv": cost_sensitivity,
     }
@@ -512,7 +658,8 @@ def run(args: argparse.Namespace) -> dict[str, float | int | str]:
         frame.to_csv(output_dir / filename, index=False)
 
     write_latex_tables(
-        construction, descriptive, gross, net, stress, robustness, lifecycle, cost_sensitivity,
+        construction, descriptive, gross, net, stress, expected_loss, assumptions_frame,
+        robustness, lifecycle, cost_sensitivity,
         args.latex_table_dir,
     )
     save_figures(draws, fx, all_horizons, net, break_even, stress, args.figure_dir)
@@ -524,6 +671,7 @@ def run(args: argparse.Namespace) -> dict[str, float | int | str]:
         "gross_result_rows": int(len(gross)),
         "net_sensitivity_rows": int(len(net)),
         "stress_scenario_rows": int(len(stress)),
+        "expected_loss_scenario_rows": int(len(expected_loss)),
         "lifecycle_rows": int(lifecycle["eligible_clean_lifecycles"].sum()),
         "cost_assumptions": assumptions.__dict__,
         "all_2026_equal_fx_checks_removed": True,

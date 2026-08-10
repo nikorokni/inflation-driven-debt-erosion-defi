@@ -5,6 +5,7 @@
   "gross_result_rows": 8,
   "net_sensitivity_rows": 48,
   "stress_scenario_rows": 162,
+  "expected_loss_scenario_rows": 54,
   "lifecycle_rows": 14210,
   "cost_assumptions": {
     "protocol_fee_fraction": 0.005,
