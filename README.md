@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Counterfactual Evidence from MakerDAO ETH-A Borrowing Activity</strong><br>
-  Niko Rokni Lamouki · Salma Soofiyan · Amin Karami
+  Niko Rokni Lamouki · Salma Soofiyan
 </p>
 
 <p align="center">
@@ -110,5 +110,4 @@ The generated counts, totals, tables, and horizon results should match the valid
 
 If this package supports your work, please cite the paper:
 
-> Rokni Lamouki, N., Soofiyan, S., & Karami, A. (2026). *Inflation-Driven Debt Erosion in Local-Currency DeFi Lending: Counterfactual Evidence from MakerDAO ETH-A Borrowing Activity.*
-
+> Rokni Lamouki, N., & Soofiyan, S. (2026). *Inflation-Driven Debt Erosion in Local-Currency DeFi Lending: Counterfactual Evidence from MakerDAO ETH-A Borrowing Activity.*
