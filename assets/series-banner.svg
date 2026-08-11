@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+  <title id="title">Inflation-Driven Debt Erosion</title>
+  <desc id="desc">Paper one of the Local-Currency DeFi Research Series</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#07111f"/><stop offset="1" stop-color="#10283a"/></linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#22d3ee"/><stop offset="1" stop-color="#f59e0b"/></linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="9" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <rect width="1200" height="360" rx="24" fill="url(#bg)"/>
+  <path d="M0 292 C180 245 320 335 508 278 S860 252 1200 116" fill="none" stroke="#173b4e" stroke-width="2"/>
+  <path d="M0 318 C210 255 372 342 560 298 S900 252 1200 190" fill="none" stroke="#123246" stroke-width="1"/>
+  <rect x="56" y="43" width="296" height="32" rx="16" fill="#0d3141" stroke="#1f7182"/>
+  <text x="76" y="64" fill="#8be9f7" font-family="Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="1.4">LOCAL-CURRENCY DEFI · PAPER 01/04</text>
+  <text x="56" y="128" fill="#eaf8fb" font-family="Arial, sans-serif" font-size="42" font-weight="800" letter-spacing="1">INFLATION-DRIVEN</text>
+  <text x="56" y="179" fill="url(#accent)" font-family="Arial, sans-serif" font-size="50" font-weight="800">DEBT EROSION</text>
+  <text x="58" y="216" fill="#a8bdc7" font-family="Arial, sans-serif" font-size="17">Counterfactual evidence from MakerDAO ETH-A borrowing</text>
+  <g transform="translate(760 48)">
+    <rect width="382" height="218" rx="20" fill="#0a1725" stroke="#214357"/>
+    <text x="26" y="38" fill="#7894a2" font-family="Arial, sans-serif" font-size="12" letter-spacing="1">LOCAL-CURRENCY DEBT BURDEN</text>
+    <path d="M28 176 L86 151 L144 160 L202 117 L260 97 L318 55 L354 43" fill="none" stroke="#22d3ee" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)"/>
+    <path d="M28 80 L86 88 L144 102 L202 111 L260 130 L318 149 L354 176" fill="none" stroke="#f59e0b" stroke-width="4" stroke-linecap="round" stroke-dasharray="8 8"/>
+    <line x1="28" y1="184" x2="354" y2="184" stroke="#315065"/>
+    <text x="28" y="204" fill="#75909d" font-family="Arial, sans-serif" font-size="11">TIME</text>
+    <text x="248" y="204" fill="#22d3ee" font-family="Arial, sans-serif" font-size="11">FX DEPRECIATION</text>
+  </g>
+  <g font-family="Arial, sans-serif" font-size="12" font-weight="700">
+    <text x="58" y="326" fill="#22d3ee">01 DEBT EROSION</text><text x="253" y="326" fill="#496271">→</text>
+    <text x="286" y="326" fill="#6f8794">02 SOLVENCY</text><text x="424" y="326" fill="#496271">→</text>
+    <text x="457" y="326" fill="#6f8794">03 PEG STABILITY</text><text x="615" y="326" fill="#496271">→</text>
+    <text x="648" y="326" fill="#6f8794">04 GOVERNANCE</text>
+  </g>
+</svg>
