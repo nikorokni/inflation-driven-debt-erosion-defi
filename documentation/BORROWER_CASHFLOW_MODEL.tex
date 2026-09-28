@@ -1,0 +1,50 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[margin=18mm]{geometry}
+\usepackage{amsmath,amssymb,booktabs,tabularx}
+\usepackage[T1]{fontenc}
+\pagestyle{empty}
+\begin{document}
+\begin{center}
+{\Large \bfseries Conditional borrower cash flows and liquidation close-out}\\[2mm]
+{\small Niko Rokni Lamouki \quad | \quad Model note for the major revision, 28 September 2026}
+\end{center}
+\vspace{1mm}
+\noindent\textbf{State and counterfactual.} Original draw $P$ is USD-equivalent DAI; a hypothetical local-currency debt starts at $PE_0$, where $E$ is local currency per USD. The effective annual local borrowing rate $r$ gives $D(t)=P(E_0/E_t)(1+r)^t$. The comparator is the same borrower retaining the original collateral without borrowing. Draw proceeds are assumed held at par; profits, reinvestment, taxes and actual local-token trades are not observed.
+
+\medskip
+\noindent\textbf{Opening costs.} At $t=0$, an externally funded fee $fP$, opening conversion friction $sP$, and opening gas $g/2$ are paid. The fee is not financed. Base assumptions are $r=20\%$, $f=0.5\%$, $s=0.3\%$ each conversion, and $g=\$40$ split equally between opening and voluntary closing. They are illustrative, not measured prices.
+
+\medskip
+\noindent\textbf{Mutually exclusive settlement routes}
+\[
+\begin{array}{ll}
+\text{Voluntary full repayment at }h:&
+ B^{\mathrm{repay}}(h)=P-fP-sP-g/2-D(h)-sD(h)-g/2,\\[2pt]
+\text{Sale at liquidation time }\tau:&
+ S=(1-a)V_\tau,\quad R=\min(S,D(\tau)),\quad W=D(\tau)-R,\\
+&
+ \Pi=\min\{\lambda D(\tau),[S-D(\tau)]_+\},\\
+&
+ H=[S-D(\tau)]_+-\Pi,\quad
+ B^{\mathrm{liq}}(\tau)=P-fP-sP-g/2-V_\tau+H.
+\end{array}
+\]
+\noindent $V_\tau$ is the owned collateral mark, $a$ an auction haircut, $R$ debt recovery, $W$ issuer/lender asset impairment, $\Pi$ a penalty capped by surplus, and $H$ collateral proceeds returned to the borrower. The liquidated branch has \emph{no further borrower repayment} at $h$, no voluntary exit swap, and no voluntary closing gas. The shortfall is assigned to claimholders under a stated nonrecourse assumption; a recourse contract would need a different ledger.
+
+\medskip
+\noindent\textbf{Numerical reconciliation, excluding all opening costs and haircut.}
+\begin{center}
+\begin{tabular}{lrrrrrr}
+\toprule
+At sale: $P=100$, $D=100$ & $V$ & $R$ & $\Pi$ & $H$ & $W$ & $B^{\rm liq}$\\
+\midrule
+Collateral surplus; $\lambda=10\%$ & 180 & 100 & 10 & 70 & 0 & -10\\
+Collateral shortfall; $\lambda=13\%$ & 60 & 60 & 0 & 0 & 40 & 40\\
+\bottomrule
+\end{tabular}
+\end{center}
+\noindent For every sale, $R+W=D$ and $R+\Pi+H=S$. Borrower collateral opportunity cost is $V-H$, never $V-H$ \emph{plus} a separate repayment. These identities are checked in the executable tests.
+
+\medskip
+\noindent\textbf{Empirical identification boundary.} The data supply official monthly FX and static terminal collateral shocks, not a within-horizon price path, actual $\tau$, auction price or probability weights. The reported collateral result is solely a terminal ratio $c_0P(1-q)/D(1)$ below a stipulated threshold. It is not an executed-liquidation probability or expected borrower outcome.
+\end{document}

@@ -14,6 +14,12 @@ manuscript/*.fls
 manuscript/*.log
 manuscript/*.out
 manuscript/*.synctex.gz
+documentation/*.aux
+documentation/*.fdb_latexmk
+documentation/*.fls
+documentation/*.log
+documentation/*.out
+tmp/
 
 .DS_Store
 Thumbs.db

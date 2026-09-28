@@ -1,697 +1,415 @@
 #!/usr/bin/env python3
-"""Reproduce all empirical tables and figures used by the revised manuscript."""
+"""Reproduce the first paper's revised results from archived draws and official FX.
 
+The empirical tables deliberately exclude probability-weighted liquidation returns:
+a monthly FX series and terminal price shocks do not identify liquidation paths.
+"""
 from __future__ import annotations
 
 import argparse
 import json
 import math
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
 
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from borrower_cashflows import CostAssumptions, accrued_debt_usd, survivor_cashflow
 
 HORIZONS = (3, 6, 12, 24)
-ANNUAL_RATES = (0.05, 0.10, 0.20, 0.40, 0.80, 1.20)
-COLLATERAL_RATIOS = (1.50, 1.75, 2.00)
-LIQUIDATION_PENALTIES = (0.05, 0.10, 0.13)
-LIQUIDATION_RATIO = 1.50
-CRYPTO_SHOCK_WEIGHTS = {
-    0.10: 0.40,
-    0.25: 0.30,
-    0.40: 0.20,
-    0.60: 0.10,
-}
-NEAR_LIQUIDATION_BUFFER = 1.10
+RATES = (0.05, 0.10, 0.20, 0.40, 0.80, 1.20)
+MINIMUM_SIZES = (1, 100, 1000, 5000, 10000)
+CURRENCIES = ("ARS", "TRY")
+FX_COLUMNS = {"ARS": "ARGCCUSMA02STM", "TRY": "CCUSMA02TRM618N"}
+BASE = CostAssumptions()
+COLORS = {"ARS": "#7a3e9d", "TRY": "#147d8d"}
 
 
-@dataclass(frozen=True)
-class CostAssumptions:
-    protocol_fee_fraction: float = 0.005
-    swap_slippage_fraction_each_way: float = 0.003
-    gas_usd_round_trip: float = 40.0
-
-
-def load_fx(ars_path: Path, try_path: Path) -> pd.DataFrame:
-    specifications = (
-        ("ARS", ars_path, "ARGCCUSMA02STM"),
-        ("TRY", try_path, "CCUSMA02TRM618N"),
-    )
-    frames = []
-    for currency, path, value_column in specifications:
+def load_fx(paths: dict[str, Path]) -> pd.DataFrame:
+    parts = []
+    for currency, path in paths.items():
         frame = pd.read_csv(path)
-        frame = frame.rename(columns={"observation_date": "month", value_column: "local_per_usd"})
+        frame = frame.rename(columns={"observation_date": "month", FX_COLUMNS[currency]: "local_per_usd"})
         frame["month"] = pd.to_datetime(frame["month"]).dt.to_period("M")
         frame["local_per_usd"] = pd.to_numeric(frame["local_per_usd"], errors="coerce")
         frame = frame.dropna(subset=["local_per_usd"])
         frame["currency"] = currency
-        frames.append(frame[["currency", "month", "local_per_usd"]])
-    return pd.concat(frames, ignore_index=True)
+        parts.append(frame[["currency", "month", "local_per_usd"]])
+    return pd.concat(parts, ignore_index=True)
 
 
-def fx_map(fx: pd.DataFrame, currency: str) -> dict[pd.Period, float]:
-    subset = fx[fx["currency"] == currency]
-    return dict(zip(subset["month"], subset["local_per_usd"], strict=True))
+def fx_lookup(fx: pd.DataFrame, currency: str) -> dict[pd.Period, float]:
+    part = fx[fx.currency == currency]
+    return dict(zip(part.month, part.local_per_usd, strict=True))
 
 
-def attach_fx(
-    events: pd.DataFrame,
-    fx: pd.DataFrame,
-    currency: str,
-    horizon_months: int,
-) -> pd.DataFrame:
-    result = events.copy()
-    timestamps = pd.to_datetime(result["timestamp"], utc=True).dt.tz_localize(None)
-    result["start_month"] = timestamps.dt.to_period("M")
-    result["end_month"] = result["start_month"] + horizon_months
-    mapping = fx_map(fx, currency)
-    result["fx_start"] = result["start_month"].map(mapping)
-    result["fx_end"] = result["end_month"].map(mapping)
-    result = result.dropna(subset=["fx_start", "fx_end"]).copy()
-    result["currency"] = currency
-    result["horizon_months"] = horizon_months
-    result["fx_ratio"] = result["fx_start"] / result["fx_end"]
-    result["gross_benefit_usd"] = result["borrowed_dai"] * (1.0 - result["fx_ratio"])
-    result["gross_benefit_pct"] = 100.0 * (1.0 - result["fx_ratio"])
-    return result
+def fixed_frame(draws: pd.DataFrame, lookup: dict[pd.Period, float], months: int) -> pd.DataFrame:
+    frame = draws[["event_id", "order", "timestamp", "urn", "borrowed_dai"]].copy()
+    frame["start_month"] = pd.to_datetime(frame.timestamp, utc=True).dt.tz_convert(None).dt.to_period("M")
+    frame["end_month"] = frame.start_month + months
+    frame["fx_start"] = frame.start_month.map(lookup)
+    frame["fx_close"] = frame.end_month.map(lookup)
+    return frame.dropna(subset=["fx_start", "fx_close"]).reset_index(drop=True)
 
 
-def cost_adjusted(
-    frame: pd.DataFrame,
-    annual_rate: float,
-    assumptions: CostAssumptions,
-    years: pd.Series | float | None = None,
-) -> pd.DataFrame:
-    result = frame.copy()
-    if years is None:
-        years = result["horizon_months"] / 12.0
-    factor = np.power(1.0 + annual_rate, years)
-    principal = result["borrowed_dai"]
-    debt_service = principal * result["fx_ratio"] * factor
-    protocol_fee = assumptions.protocol_fee_fraction * principal * result["fx_ratio"]
-    entry_swap = assumptions.swap_slippage_fraction_each_way * principal
-    repayment_swap = assumptions.swap_slippage_fraction_each_way * debt_service
-    total_repayment = debt_service + protocol_fee + entry_swap + repayment_swap + assumptions.gas_usd_round_trip
-    result["annual_borrow_rate"] = annual_rate
-    result["debt_service_usd"] = debt_service
-    result["protocol_fee_usd"] = protocol_fee
-    result["swap_slippage_usd"] = entry_swap + repayment_swap
-    result["gas_usd"] = assumptions.gas_usd_round_trip
-    result["total_repayment_usd"] = total_repayment
-    result["net_benefit_preliq_usd"] = principal - total_repayment
-    result["net_benefit_preliq_pct"] = 100.0 * result["net_benefit_preliq_usd"] / principal
-    return result
+def with_cashflows(frame: pd.DataFrame, years: object, rate: float = 0.20,
+                   costs: CostAssumptions = BASE) -> pd.DataFrame:
+    out = frame.copy()
+    p = out.borrowed_dai.to_numpy()
+    e0 = out.fx_start.to_numpy()
+    et = out.fx_close.to_numpy()
+    out["gross_usd"] = p * (1 - e0 / et)
+    amounts = survivor_cashflow(p, e0, et, years, rate, costs)
+    out["debt_usd"] = amounts["debt_service_usd"]
+    out["net_usd"] = amounts["net_benefit_usd"]
+    out["gross_pct"] = 100 * out.gross_usd / p
+    out["net_pct"] = 100 * out.net_usd / p
+    return out
 
 
-def calculate_break_even(frame: pd.DataFrame, assumptions: CostAssumptions) -> pd.Series:
-    principal = frame["borrowed_dai"]
-    q = frame["fx_ratio"]
-    years = frame["horizon_months"] / 12.0
-    numerator = 1.0 - assumptions.protocol_fee_fraction * q - assumptions.swap_slippage_fraction_each_way - assumptions.gas_usd_round_trip / principal
-    denominator = q * (1.0 + assumptions.swap_slippage_fraction_each_way)
-    rhs = numerator / denominator
-    values = np.where(rhs > 0, np.power(rhs, 1.0 / years) - 1.0, np.nan)
-    return pd.Series(values, index=frame.index)
+def metric(frame: pd.DataFrame, label: str, *, currency: str, horizon: str) -> dict:
+    p = frame.borrowed_dai
+    return {
+        "currency": currency, "sample": label, "horizon": horizon,
+        "n": len(frame), "total_principal_usd": float(p.sum()),
+        "median_gross_pct": float(frame.gross_pct.median()),
+        "median_net_pct": float(frame.net_pct.median()),
+        "mean_net_pct": float(frame.net_pct.mean()),
+        "positive_net_pct": float(100 * (frame.net_usd > 0).mean()),
+        "weighted_net_pct": float(100 * frame.net_usd.sum() / p.sum()),
+    }
 
 
-def descriptive_statistics(draws: pd.DataFrame) -> pd.DataFrame:
-    stats = pd.DataFrame(
-        [
-            {
-                "final_draw_events": len(draws),
-                "unique_urns": draws["urn"].nunique(),
-                "date_start": pd.to_datetime(draws["timestamp"], utc=True).min().date().isoformat(),
-                "date_end": pd.to_datetime(draws["timestamp"], utc=True).max().date().isoformat(),
-                "total_borrowed_dai": draws["borrowed_dai"].sum(),
-                "mean_borrowed_dai": draws["borrowed_dai"].mean(),
-                "median_borrowed_dai": draws["borrowed_dai"].median(),
-                "std_borrowed_dai": draws["borrowed_dai"].std(),
-                "minimum_borrowed_dai": draws["borrowed_dai"].min(),
-                "maximum_borrowed_dai": draws["borrowed_dai"].max(),
-            }
-        ]
-    )
-    return stats
-
-
-def horizon_summary(all_horizons: pd.DataFrame) -> pd.DataFrame:
-    rows = []
-    for (currency, horizon), group in all_horizons.groupby(["currency", "horizon_months"], sort=True):
-        q1 = group["gross_benefit_pct"].quantile(0.25)
-        q3 = group["gross_benefit_pct"].quantile(0.75)
-        rows.append(
-            {
-                "currency": currency,
-                "horizon_months": horizon,
-                "eligible_events": len(group),
-                "total_borrowed_dai": group["borrowed_dai"].sum(),
-                "mean_gross_benefit_pct": group["gross_benefit_pct"].mean(),
-                "median_gross_benefit_pct": group["gross_benefit_pct"].median(),
-                "std_gross_benefit_pct": group["gross_benefit_pct"].std(),
-                "iqr_gross_benefit_pct": q3 - q1,
-                "positive_positions_pct": 100.0 * (group["gross_benefit_pct"] > 0).mean(),
-                "total_gross_benefit_usd": group["gross_benefit_usd"].sum(),
-                "value_weighted_gross_benefit_pct": 100.0 * group["gross_benefit_usd"].sum() / group["borrowed_dai"].sum(),
-            }
-        )
-    return pd.DataFrame(rows)
-
-
-def net_summary(all_horizons: pd.DataFrame, assumptions: CostAssumptions) -> tuple[pd.DataFrame, pd.DataFrame]:
-    net_rows = []
-    break_even_rows = []
-    for (currency, horizon), group in all_horizons.groupby(["currency", "horizon_months"], sort=True):
-        break_even = 100.0 * calculate_break_even(group, assumptions)
-        break_even_rows.append(
-            {
-                "currency": currency,
-                "horizon_months": horizon,
-                "median_break_even_rate_pct": break_even.median(),
-                "p25_break_even_rate_pct": break_even.quantile(0.25),
-                "p75_break_even_rate_pct": break_even.quantile(0.75),
-            }
-        )
-        for rate in ANNUAL_RATES:
-            adjusted = cost_adjusted(group, rate, assumptions)
-            net_rows.append(
-                {
-                    "currency": currency,
-                    "horizon_months": horizon,
-                    "annual_borrow_rate_pct": 100.0 * rate,
-                    "events": len(adjusted),
-                    "mean_net_benefit_pct": adjusted["net_benefit_preliq_pct"].mean(),
-                    "median_net_benefit_pct": adjusted["net_benefit_preliq_pct"].median(),
-                    "positive_positions_pct": 100.0 * (adjusted["net_benefit_preliq_usd"] > 0).mean(),
-                    "total_net_benefit_usd": adjusted["net_benefit_preliq_usd"].sum(),
-                    "value_weighted_net_benefit_pct": 100.0 * adjusted["net_benefit_preliq_usd"].sum() / adjusted["borrowed_dai"].sum(),
-                }
-            )
-    return pd.DataFrame(net_rows), pd.DataFrame(break_even_rows)
-
-
-def lifecycle_summary(lifecycles: pd.DataFrame, fx: pd.DataFrame, assumptions: CostAssumptions) -> pd.DataFrame:
+def prepare_lifecycles(lifecycles: pd.DataFrame, lookup: dict[pd.Period, float]) -> pd.DataFrame:
     clean = lifecycles[
-        lifecycles["single_draw_clean"].astype(str).str.lower().eq("true")
-        & (lifecycles["start_dai"] >= 1.0)
+        lifecycles.single_draw_clean.astype(str).str.lower().eq("true")
+        & lifecycles.status.eq("repaid")
+        & (lifecycles.start_dai >= 1)
+        & (lifecycles.duration_days > 0)
     ].copy()
-    clean = clean.rename(columns={"start_timestamp": "timestamp", "start_dai": "borrowed_dai"})
-    clean["start_dt"] = pd.to_datetime(clean["timestamp"], utc=True).dt.tz_localize(None)
-    clean["end_dt"] = pd.to_datetime(clean["end_timestamp"], utc=True).dt.tz_localize(None)
-    clean = clean[(clean["start_dt"] >= pd.Timestamp("2020-01-01")) & (clean["duration_days"] > 0)]
+    clean = clean.rename(columns={"start_dai": "borrowed_dai", "start_timestamp": "timestamp"})
+    clean["start_dt"] = pd.to_datetime(clean.timestamp, utc=True)
+    clean["end_dt"] = pd.to_datetime(clean.end_timestamp, utc=True)
+    clean = clean[clean.start_dt >= pd.Timestamp("2020-01-01", tz="UTC")].copy()
+    clean["start_month"] = clean.start_dt.dt.tz_convert(None).dt.to_period("M")
+    clean["end_month"] = clean.end_dt.dt.tz_convert(None).dt.to_period("M")
+    clean["fx_start"] = clean.start_month.map(lookup)
+    clean["fx_close"] = clean.end_month.map(lookup)
+    clean = clean.dropna(subset=["fx_start", "fx_close"]).reset_index(drop=True)
+    return with_cashflows(clean, clean.duration_days.to_numpy() / 365.25)
+
+
+def urn_counts(draws: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    counts = draws.groupby("urn", as_index=False, sort=False).agg(
+        draw_count=("event_id", "size"), total_drawn_dai=("borrowed_dai", "sum"))
+    bands = pd.cut(counts.draw_count, bins=[0, 1, 2, 5, 10, np.inf],
+                   labels=["1", "2", "3-5", "6-10", "11+"])
+    dist = counts.assign(band=bands).groupby("band", observed=True).agg(
+        urns=("urn", "size"), draw_events=("draw_count", "sum")).reset_index()
+    dist["share_urns_pct"] = 100 * dist.urns / len(counts)
+    dist["share_draws_pct"] = 100 * dist.draw_events / len(draws)
+    return counts, dist
+
+
+def dependence(frame: pd.DataFrame, currency: str) -> tuple[list[dict], pd.DataFrame]:
+    first = frame.sort_values(["timestamp", "order", "event_id"]).drop_duplicates("urn", keep="first")
+    urn = frame.groupby("urn", as_index=False).agg(
+        draws=("event_id", "size"), principal_usd=("borrowed_dai", "sum"),
+        net_usd=("net_usd", "sum"), gross_usd=("gross_usd", "sum"))
+    urn["net_pct"] = 100 * urn.net_usd / urn.principal_usd
     rows = []
-    for currency in ("ARS", "TRY"):
-        mapping = fx_map(fx, currency)
-        frame = clean.copy()
-        frame["start_month"] = frame["start_dt"].dt.to_period("M")
-        frame["end_month"] = frame["end_dt"].dt.to_period("M")
-        frame["fx_start"] = frame["start_month"].map(mapping)
-        frame["fx_end"] = frame["end_month"].map(mapping)
-        frame = frame.dropna(subset=["fx_start", "fx_end"])
-        frame["fx_ratio"] = frame["fx_start"] / frame["fx_end"]
-        frame["gross_benefit_pct"] = 100.0 * (1.0 - frame["fx_ratio"])
-        frame["horizon_months"] = 12.0 * frame["duration_days"] / 365.25
-        adjusted = cost_adjusted(frame, 0.20, assumptions, years=frame["duration_days"] / 365.25)
-        rows.append(
-            {
-                "currency": currency,
-                "eligible_clean_lifecycles": len(frame),
-                "median_duration_days": frame["duration_days"].median(),
-                "mean_gross_benefit_pct": frame["gross_benefit_pct"].mean(),
-                "median_gross_benefit_pct": frame["gross_benefit_pct"].median(),
-                "mean_net_benefit_pct_at_20pct_rate": adjusted["net_benefit_preliq_pct"].mean(),
-                "median_net_benefit_pct_at_20pct_rate": adjusted["net_benefit_preliq_pct"].median(),
-                "positive_net_positions_pct": 100.0 * (adjusted["net_benefit_preliq_usd"] > 0).mean(),
-            }
-        )
-    return pd.DataFrame(rows)
+    for name, selected in [("All draw events", frame), ("First draw per urn", first)]:
+        rows.append({
+            "currency": currency, "unit": name, "n": len(selected),
+            "median_net_pct": selected.net_pct.median(),
+            "equal_unit_mean_pct": selected.net_pct.mean(),
+            "weighted_net_pct": 100 * selected.net_usd.sum() / selected.borrowed_dai.sum(),
+            "positive_units_pct": 100 * (selected.net_usd > 0).mean(),
+        })
+    rows.append({
+        "currency": currency, "unit": "Urn aggregate", "n": len(urn),
+        "median_net_pct": urn.net_pct.median(),
+        "equal_unit_mean_pct": urn.net_pct.mean(),
+        "weighted_net_pct": 100 * urn.net_usd.sum() / urn.principal_usd.sum(),
+        "positive_units_pct": 100 * (urn.net_usd > 0).mean(),
+    })
+    urn["currency"] = currency
+    return rows, urn
 
 
-def collateral_stress(all_horizons: pd.DataFrame, assumptions: CostAssumptions) -> pd.DataFrame:
-    base = all_horizons[all_horizons["horizon_months"] == 12].copy()
-    collateral_scenarios = {
-        "USD_stablecoin": (0.0,),
-        "ETH": (0.10, 0.25, 0.40, 0.60),
-        "BTC": (0.10, 0.25, 0.40, 0.60),
-    }
+def concentration(frame: pd.DataFrame, currency: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    ranked = frame.sort_values(["borrowed_dai", "event_id"], ascending=[False, True])
+    denom_benefit = frame.net_usd.sum()
     rows = []
-    for currency, currency_frame in base.groupby("currency"):
-        adjusted = cost_adjusted(currency_frame, 0.20, assumptions)
-        for collateral_type, shocks in collateral_scenarios.items():
-            for shock in shocks:
-                for initial_cr in COLLATERAL_RATIOS:
-                    collateral_usd = adjusted["borrowed_dai"] * initial_cr * (1.0 - shock)
-                    health_ratio = collateral_usd / adjusted["debt_service_usd"]
-                    liquidated = health_ratio < LIQUIDATION_RATIO
-                    near_liquidation = (
-                        (health_ratio >= LIQUIDATION_RATIO)
-                        & (health_ratio < LIQUIDATION_RATIO * NEAR_LIQUIDATION_BUFFER)
-                    )
-                    healthy = health_ratio >= LIQUIDATION_RATIO * NEAR_LIQUIDATION_BUFFER
-                    for penalty in LIQUIDATION_PENALTIES:
-                        loss = np.where(liquidated, penalty * adjusted["debt_service_usd"], 0.0)
-                        risk_benefit = adjusted["net_benefit_preliq_usd"] - loss
-                        rows.append(
-                            {
-                                "currency": currency,
-                                "horizon_months": 12,
-                                "annual_borrow_rate_pct": 20.0,
-                                "collateral_type": collateral_type,
-                                "collateral_shock_pct": 100.0 * shock,
-                                "initial_collateral_ratio_pct": 100.0 * initial_cr,
-                                "liquidation_threshold_pct": 100.0 * LIQUIDATION_RATIO,
-                                "liquidation_penalty_pct": 100.0 * penalty,
-                                "healthy_positions_pct": 100.0 * healthy.mean(),
-                                "near_liquidation_positions_pct": 100.0 * near_liquidation.mean(),
-                                "liquidated_positions_pct": 100.0 * liquidated.mean(),
-                                "mean_risk_adjusted_benefit_pct": 100.0 * (risk_benefit / adjusted["borrowed_dai"]).mean(),
-                                "positive_risk_adjusted_positions_pct": 100.0 * (risk_benefit > 0).mean(),
-                                "value_weighted_risk_adjusted_benefit_pct": 100.0 * risk_benefit.sum() / adjusted["borrowed_dai"].sum(),
-                            }
-                        )
-    return pd.DataFrame(rows)
+    for fraction in (0.01, 0.05, 0.10):
+        top = ranked.head(math.ceil(fraction * len(ranked)))
+        rows.append({
+            "currency": currency, "top_pct_by_draw_size": 100 * fraction, "events": len(top),
+            "share_principal_pct": 100 * top.borrowed_dai.sum() / frame.borrowed_dai.sum(),
+            "share_signed_net_benefit_pct": 100 * top.net_usd.sum() / denom_benefit,
+            "top_weighted_net_pct": 100 * top.net_usd.sum() / top.borrowed_dai.sum(),
+        })
+    monthly = frame.groupby("start_month", sort=True).agg(
+        events=("event_id", "size"), principal_usd=("borrowed_dai", "sum"),
+        net_usd=("net_usd", "sum")).reset_index()
+    monthly["currency"] = currency
+    monthly["start_month"] = monthly.start_month.astype(str)
+    monthly["share_principal_pct"] = 100 * monthly.principal_usd / frame.borrowed_dai.sum()
+    monthly["share_signed_net_benefit_pct"] = 100 * monthly.net_usd / denom_benefit
+    monthly["weighted_net_pct"] = 100 * monthly.net_usd / monthly.principal_usd
+    return pd.DataFrame(rows), monthly
 
 
-def expected_liquidation_loss_summary(
-    all_horizons: pd.DataFrame,
-    assumptions: CostAssumptions,
-) -> pd.DataFrame:
-    """Scenario-weighted liquidation loss; weights are declared, not estimated."""
-
-    base = all_horizons[all_horizons["horizon_months"] == 12].copy()
+def thresholds(frame: pd.DataFrame, currency: str, sample: str) -> list[dict]:
     rows = []
-    for currency, currency_frame in base.groupby("currency"):
-        adjusted = cost_adjusted(currency_frame, 0.20, assumptions)
-        for collateral_type in ("USD_stablecoin", "ETH", "BTC"):
-            shock_weights = {0.0: 1.0} if collateral_type == "USD_stablecoin" else CRYPTO_SHOCK_WEIGHTS
-            for initial_cr in COLLATERAL_RATIOS:
-                for penalty in LIQUIDATION_PENALTIES:
-                    expected_loss = np.zeros(len(adjusted), dtype=float)
-                    expected_breach_probability = np.zeros(len(adjusted), dtype=float)
-                    for shock, weight in shock_weights.items():
-                        collateral_usd = adjusted["borrowed_dai"] * initial_cr * (1.0 - shock)
-                        health_ratio = collateral_usd / adjusted["debt_service_usd"]
-                        breached = (health_ratio < LIQUIDATION_RATIO).to_numpy()
-                        expected_breach_probability += weight * breached
-                        expected_loss += (
-                            weight
-                            * breached
-                            * penalty
-                            * adjusted["debt_service_usd"].to_numpy()
-                        )
-                    risk_benefit = adjusted["net_benefit_preliq_usd"].to_numpy() - expected_loss
-                    principal = adjusted["borrowed_dai"].to_numpy()
-                    rows.append(
-                        {
-                            "currency": currency,
-                            "horizon_months": 12,
-                            "annual_borrow_rate_pct": 20.0,
-                            "collateral_type": collateral_type,
-                            "initial_collateral_ratio_pct": 100.0 * initial_cr,
-                            "liquidation_threshold_pct": 100.0 * LIQUIDATION_RATIO,
-                            "liquidation_penalty_pct": 100.0 * penalty,
-                            "mean_expected_breach_probability_pct": 100.0 * expected_breach_probability.mean(),
-                            "mean_expected_liquidation_loss_pct": 100.0 * np.mean(expected_loss / principal),
-                            "median_risk_adjusted_benefit_pct": 100.0 * np.median(risk_benefit / principal),
-                            "positive_risk_adjusted_positions_pct": 100.0 * np.mean(risk_benefit > 0),
-                            "value_weighted_risk_adjusted_benefit_pct": 100.0 * risk_benefit.sum() / principal.sum(),
-                        }
-                    )
-    return pd.DataFrame(rows)
+    for floor in MINIMUM_SIZES:
+        part = frame[frame.borrowed_dai >= floor]
+        rows.append({
+            "currency": currency, "sample": sample, "minimum_usd": floor, "n": len(part),
+            "retained_events_pct": 100 * len(part) / len(frame),
+            "median_net_pct": part.net_pct.median(),
+            "mean_net_pct": part.net_pct.mean(),
+            "positive_net_pct": 100 * (part.net_usd > 0).mean(),
+            "weighted_net_pct": 100 * part.net_usd.sum() / part.borrowed_dai.sum(),
+        })
+    return rows
 
 
-def assumptions_table(assumptions: CostAssumptions) -> pd.DataFrame:
-    return pd.DataFrame(
-        [
-            ("Currencies", "ARS and TRY", "Official LCU per USD"),
-            ("FX source", "OECD MEI via FRED", "Monthly averages; no interpolation"),
-            ("Fixed horizons", "3, 6, 12, 24 months", "Calendar-month matching"),
-            ("Annual borrowing rates", "5, 10, 20, 40, 80, 120%", "Sensitivity grid"),
-            ("Protocol fee", f"{100 * assumptions.protocol_fee_fraction:.1f}%", "Base case"),
-            ("Conversion cost", f"{100 * assumptions.swap_slippage_fraction_each_way:.1f}% each way", "Base case"),
-            ("Round-trip gas", f"USD {assumptions.gas_usd_round_trip:.0f}", "Base case"),
-            ("Collateral", "USD stablecoin, ETH, BTC", "Counterfactual stress screen"),
-            ("Initial collateral ratios", "150, 175, 200%", "Sensitivity grid"),
-            ("Liquidation threshold", f"{100 * LIQUIDATION_RATIO:.0f}%", "Common screen"),
-            ("Liquidation penalties", "5, 10, 13%", "Sensitivity grid"),
-            ("Crypto price shocks", "10, 25, 40, 60%", "Terminal stress grid"),
-            (
-                "Expected-loss weights",
-                "40, 30, 20, 10%",
-                "Illustrative weights for 10, 25, 40, 60% shocks",
-            ),
-        ],
-        columns=["parameter", "values", "role"],
-    )
+def duration_bins(frame: pd.DataFrame, currency: str) -> pd.DataFrame:
+    bands = pd.cut(frame.duration_days, bins=[0, 1, 7, 30, 90, np.inf],
+                   labels=["(0,1]", "(1,7]", "(7,30]", "(30,90]", ">90"])
+    result = frame.assign(duration_band=bands).groupby("duration_band", observed=True).agg(
+        n=("urn", "size"), median_days=("duration_days", "median"),
+        median_net_pct=("net_pct", "median"), positive_net_pct=("net_usd", lambda x: 100 * (x > 0).mean()),
+        principal_usd=("borrowed_dai", "sum"), total_net_usd=("net_usd", "sum"),
+    ).reset_index()
+    result["currency"] = currency
+    result["weighted_net_pct"] = 100 * result.total_net_usd / result.principal_usd
+    return result
 
 
-def robustness_summary(draws: pd.DataFrame, fx: pd.DataFrame) -> pd.DataFrame:
+def terminal_screen(frame: pd.DataFrame, currency: str) -> list[dict]:
+    p = frame.borrowed_dai.to_numpy()
+    debt = accrued_debt_usd(p, frame.fx_start.to_numpy(), frame.fx_close.to_numpy(), 1, 0.20)
     rows = []
-    for currency in ("ARS", "TRY"):
-        base = attach_fx(draws, fx, currency, 12)
-        mapping = fx_map(fx, currency)
-        previous_start = (base["start_month"] - 1).map(mapping)
-        next_start = (base["start_month"] + 1).map(mapping)
-        previous_end = (base["end_month"] - 1).map(mapping)
-        next_end = (base["end_month"] + 1).map(mapping)
-        start_window = pd.concat([base["fx_start"], previous_start, next_start], axis=1).max(axis=1)
-        end_window = pd.concat([base["fx_end"], previous_end, next_end], axis=1).min(axis=1)
-        conservative = 100.0 * (1.0 - start_window / end_window)
-        rows.extend(
-            [
-                {
-                    "currency": currency,
-                    "specification": "Base calendar-month average",
-                    "events": len(base),
-                    "mean_gross_benefit_pct": base["gross_benefit_pct"].mean(),
-                    "median_gross_benefit_pct": base["gross_benefit_pct"].median(),
-                    "positive_positions_pct": 100.0 * (base["gross_benefit_pct"] > 0).mean(),
-                },
-                {
-                    "currency": currency,
-                    "specification": "Conservative adjacent-month FX window",
-                    "events": int(conservative.notna().sum()),
-                    "mean_gross_benefit_pct": conservative.mean(),
-                    "median_gross_benefit_pct": conservative.median(),
-                    "positive_positions_pct": 100.0 * (conservative > 0).mean(),
-                },
-            ]
-        )
-    return pd.DataFrame(rows)
+    for cr0 in (1.50, 1.75, 2.00):
+        for shock in (0, 0.10, 0.25, 0.40, 0.60):
+            ratio = cr0 * p * (1 - shock) / debt
+            rows.append({
+                "currency": currency, "initial_ratio_pct": 100 * cr0,
+                "terminal_price_decline_pct": 100 * shock,
+                "terminal_below_150pct_share": 100 * (ratio < 1.50).mean(),
+                "median_terminal_ratio_pct": 100 * np.median(ratio),
+                "n": len(frame),
+            })
+    return rows
 
 
-def cost_sensitivity_summary(all_horizons: pd.DataFrame) -> pd.DataFrame:
-    scenarios = {
-        "Low execution cost": CostAssumptions(0.000, 0.001, 10.0),
-        "Base execution cost": CostAssumptions(0.005, 0.003, 40.0),
-        "High execution cost": CostAssumptions(0.010, 0.010, 100.0),
-    }
+def _escape(value: object) -> str:
+    return str(value).replace("%", r"\%").replace("_", r"\_")
+
+
+def tex_tabular(path: Path, headings: list[str], rows: list[list[object]], align: str) -> None:
+    lines = [r"\begin{tabular}{" + align + "}", r"\toprule",
+             " & ".join(headings) + r" \\", r"\midrule"]
+    for row in rows:
+        lines.append(" & ".join(_escape(x) for x in row) + r" \\")
+    lines += [r"\bottomrule", r"\end{tabular}", ""]
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def save_tables(output: Path, summary: pd.DataFrame, dep: pd.DataFrame, size: pd.DataFrame,
+                concentration: pd.DataFrame, duration: pd.DataFrame, terminal: pd.DataFrame) -> None:
+    output.mkdir(parents=True, exist_ok=True)
     rows = []
-    base = all_horizons[all_horizons["horizon_months"] == 12]
-    for currency, group in base.groupby("currency"):
-        for label, assumptions in scenarios.items():
-            adjusted = cost_adjusted(group, 0.20, assumptions)
-            rows.append(
-                {
-                    "currency": currency,
-                    "scenario": label,
-                    "annual_borrow_rate_pct": 20.0,
-                    "protocol_fee_pct": 100.0 * assumptions.protocol_fee_fraction,
-                    "swap_slippage_each_way_pct": 100.0 * assumptions.swap_slippage_fraction_each_way,
-                    "round_trip_gas_usd": assumptions.gas_usd_round_trip,
-                    "median_net_benefit_pct": adjusted["net_benefit_preliq_pct"].median(),
-                    "positive_positions_pct": 100.0 * (adjusted["net_benefit_preliq_usd"] > 0).mean(),
-                    "value_weighted_net_benefit_pct": 100.0 * adjusted["net_benefit_preliq_usd"].sum() / adjusted["borrowed_dai"].sum(),
-                }
-            )
-    return pd.DataFrame(rows)
+    for c in CURRENCIES:
+        d = summary[(summary.currency == c) & (summary["sample"] == "Clean observed duration")].iloc[0]
+        m12 = summary[(summary.currency == c) & (summary.horizon == "12m")].iloc[0]
+        m24 = summary[(summary.currency == c) & (summary.horizon == "24m")].iloc[0]
+        rows.append([c, f"{int(d.n):,}", f"{d.median_net_pct:.2f}", f"{m12.median_gross_pct:.2f}",
+                     f"{m12.median_net_pct:.2f}", f"{m24.median_net_pct:.2f}"])
+    tex_tabular(output / "main.tex",
+                ["FX", "Clean spells", "Observed net", "12m gross", "12m net", "24m net"], rows, "lrrrrr")
+    tex_tabular(output / "dependence.tex",
+                ["FX", "Unit", "$N$", "Median net", "Mean net", "Weighted net"],
+                [[r.currency, r.unit, f"{int(r.n):,}", f"{r.median_net_pct:.2f}",
+                  f"{r.equal_unit_mean_pct:.2f}", f"{r.weighted_net_pct:.2f}"]
+                 for r in dep.itertuples()], "llrrrr")
+    tex_tabular(output / "size.tex",
+                ["FX", "Sample", "Min. USD", "$N$", "Median net", "Weighted net"],
+                [[r.currency, "Observed" if r.sample.startswith("Clean") else "12m",
+                  f"{int(r.minimum_usd):,}", f"{int(r.n):,}", f"{r.median_net_pct:.2f}",
+                  f"{r.weighted_net_pct:.2f}"] for r in size.itertuples()], "llrrrr")
+    tex_tabular(output / "concentration.tex",
+                ["FX", "Largest draws", "Share of principal", "Share of signed net"],
+                [[r.currency, f"{r.top_pct_by_draw_size:.0f}%", f"{r.share_principal_pct:.2f}",
+                  f"{r.share_signed_net_benefit_pct:.2f}"] for r in concentration.itertuples()], "llrr")
+    tex_tabular(output / "duration.tex",
+                ["FX", "Duration (days)", "$N$", "Median net", "Positive"],
+                [[r.currency, "$>90$" if r.duration_band == ">90" else r.duration_band,
+                  f"{int(r.n):,}", f"{r.median_net_pct:.2f}",
+                  f"{r.positive_net_pct:.2f}"] for r in duration.itertuples()], "llrrr")
+    shown = terminal[(terminal.initial_ratio_pct == 175) &
+                     terminal.terminal_price_decline_pct.isin([10, 25, 40, 60])]
+    tex_tabular(output / "terminal.tex",
+                ["FX", "Price decline", "Terminal breach share"],
+                [[r.currency, f"{r.terminal_price_decline_pct:.0f}%",
+                  f"{r.terminal_below_150pct_share:.2f}"] for r in shown.itertuples()], "lrr")
 
 
-def configure_plotting() -> None:
-    plt.rcParams.update(
-        {
-            "font.size": 10,
-            "axes.titlesize": 12,
-            "axes.labelsize": 10,
-            "figure.dpi": 120,
-            "savefig.dpi": 300,
-            "axes.spines.top": False,
-            "axes.spines.right": False,
-        }
-    )
-
-
-def save_figures(
-    draws: pd.DataFrame,
-    fx: pd.DataFrame,
-    gross: pd.DataFrame,
-    net: pd.DataFrame,
-    break_even: pd.DataFrame,
-    stress: pd.DataFrame,
-    figure_dir: Path,
-) -> None:
-    configure_plotting()
-    figure_dir.mkdir(parents=True, exist_ok=True)
-    colors = {"ARS": "#7b2cbf", "TRY": "#0081a7"}
-
-    fig, ax = plt.subplots(figsize=(7.2, 4.2))
-    ax.hist(np.log10(draws["borrowed_dai"]), bins=70, color="#264653", alpha=0.9)
-    ax.set_xlabel(r"Borrowing-event size, $\log_{10}$(DAI)")
-    ax.set_ylabel("Number of debt-draw events")
-    ax.set_title("Distribution of ETH-A borrowing-event sizes")
-    fig.tight_layout()
-    fig.savefig(figure_dir / "figure3.png")
-    plt.close(fig)
-
-    yearly = draws.groupby("borrow_year").agg(events=("event_id", "size"), total_dai=("borrowed_dai", "sum")).reset_index()
-    fig, ax1 = plt.subplots(figsize=(7.2, 4.2))
-    ax2 = ax1.twinx()
-    ax1.bar(yearly["borrow_year"] - 0.15, yearly["events"], width=0.3, color="#457b9d", label="Events")
-    ax2.bar(yearly["borrow_year"] + 0.15, yearly["total_dai"] / 1e9, width=0.3, color="#e76f51", label="DAI value")
-    ax1.set_xlabel("Year")
-    ax1.set_ylabel("Event count", color="#457b9d")
-    ax2.set_ylabel("Total DAI drawn (billions)", color="#e76f51")
-    ax1.set_xticks(yearly["borrow_year"])
-    ax1.set_title("ETH-A borrowing activity by year")
-    fig.tight_layout()
-    fig.savefig(figure_dir / "figure4.png")
-    plt.close(fig)
-
-    fig, ax = plt.subplots(figsize=(7.2, 4.2))
-    for currency in ("ARS", "TRY"):
-        subset = fx[(fx["currency"] == currency) & (fx["month"] >= pd.Period("2019-01", "M"))]
-        dates = subset["month"].dt.to_timestamp()
-        ax.plot(dates, subset["local_per_usd"], label=currency, color=colors[currency], linewidth=2)
+def save_figures(fx: pd.DataFrame, durations: dict[str, pd.DataFrame], monthly: pd.DataFrame,
+                 terminal: pd.DataFrame, out: Path) -> None:
+    out.mkdir(parents=True, exist_ok=True)
+    plt.rcParams.update({"font.size": 12, "axes.titlesize": 13, "figure.dpi": 125,
+                         "savefig.dpi": 220, "axes.spines.top": False, "axes.spines.right": False})
+    fig, ax = plt.subplots(figsize=(9, 4.5))
+    for c in CURRENCIES:
+        part = fx[(fx.currency == c) & (fx.month >= pd.Period("2019-01")) &
+                  (fx.month <= pd.Period("2025-07"))]
+        ax.plot(part.month.dt.to_timestamp(), part.local_per_usd, lw=2, color=COLORS[c], label=c)
     ax.set_yscale("log")
-    ax.set_ylabel("Local currency per USD (log scale)")
     ax.set_xlabel("Month")
-    ax.set_title("Official monthly ARS/USD and TRY/USD trajectories")
-    ax.legend()
+    ax.set_ylabel("Official local-currency units per USD (log scale)")
+    ax.legend(frameon=False)
     fig.tight_layout()
-    fig.savefig(figure_dir / "figure2.png")
+    fig.savefig(out / "fx_paths.png")
     plt.close(fig)
 
-    gross_summary = horizon_summary(gross)
-    fig, ax = plt.subplots(figsize=(7.2, 4.2))
-    for currency in ("ARS", "TRY"):
-        subset = gross_summary[gross_summary["currency"] == currency]
-        ax.plot(subset["horizon_months"], subset["median_gross_benefit_pct"], marker="o", label=currency, color=colors[currency])
-    ax.axhline(0, color="black", linewidth=0.8)
-    ax.set_xticks(HORIZONS)
-    ax.set_xlabel("Fixed repayment horizon (months)")
-    ax.set_ylabel("Median gross FX-driven debt-erosion benefit (%)")
-    ax.set_title("Gross debt erosion increases with holding horizon")
-    ax.legend()
+    fig, ax = plt.subplots(figsize=(9, 4.5))
+    for c in CURRENCIES:
+        vals = durations[c].duration_days.to_numpy()
+        bins = np.logspace(-3, 3.5, 70)
+        ax.hist(vals, bins=bins, histtype="step", linewidth=2, label=c, color=COLORS[c])
+    ax.set_xscale("log")
+    ax.set_xlabel("Observed clean-spell duration (days; logarithmic)")
+    ax.set_ylabel("Number of reconstructed spells")
+    ax.legend(frameon=False)
     fig.tight_layout()
-    fig.savefig(figure_dir / "figure5.png")
+    fig.savefig(out / "observed_duration.png")
     plt.close(fig)
 
-    fig, axes = plt.subplots(1, 2, figsize=(8.0, 4.0), sharey=True)
-    for ax, currency in zip(axes, ("ARS", "TRY"), strict=True):
-        subset = net[(net["currency"] == currency) & (net["horizon_months"] == 12)]
-        ax.plot(subset["annual_borrow_rate_pct"], subset["mean_net_benefit_pct"], marker="o", color=colors[currency])
-        ax.axhline(0, color="black", linewidth=0.8)
-        ax.set_title(currency)
-        ax.set_xlabel("Annual borrowing rate (%)")
-    axes[0].set_ylabel("Mean net benefit before liquidation (%)")
-    fig.suptitle("Twelve-month net benefit after costs and fees")
+    pivot = monthly.pivot(index="start_month", columns="currency", values="share_signed_net_benefit_pct")
+    fig, ax = plt.subplots(figsize=(10, 4.8))
+    x = np.arange(len(pivot))
+    ax.bar(x-0.18, pivot.ARS, width=0.36, color=COLORS["ARS"], label="ARS")
+    ax.bar(x+0.18, pivot.TRY, width=0.36, color=COLORS["TRY"], label="TRY")
+    ax.axhline(0, color="black", lw=0.8)
+    ax.set_xticks(x[::3], pivot.index[::3], rotation=45, ha="right")
+    ax.set_ylabel("Share of signed 12-month net benefit (%)")
+    ax.set_xlabel("Origination month")
+    ax.legend(frameon=False)
     fig.tight_layout()
-    fig.savefig(figure_dir / "figure6.png")
+    fig.savefig(out / "origination_month.png")
     plt.close(fig)
 
-    fig, ax = plt.subplots(figsize=(7.2, 4.2))
-    positions = np.arange(len(HORIZONS))
-    width = 0.35
-    for offset, currency in ((-width / 2, "ARS"), (width / 2, "TRY")):
-        subset = break_even[break_even["currency"] == currency].set_index("horizon_months").loc[list(HORIZONS)]
-        ax.bar(positions + offset, subset["median_break_even_rate_pct"], width=width, label=currency, color=colors[currency])
-    ax.set_xticks(positions, [str(h) for h in HORIZONS])
-    ax.set_xlabel("Horizon (months)")
-    ax.set_ylabel("Median annual break-even borrowing rate (%)")
-    ax.set_title("Break-even borrowing-rate sensitivity")
-    ax.legend()
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.4), sharey=True)
+    for ax, c in zip(axes, CURRENCIES, strict=True):
+        subset = terminal[terminal.currency == c]
+        for cr0 in (150, 175, 200):
+            line = subset[subset.initial_ratio_pct == cr0]
+            ax.plot(line.terminal_price_decline_pct, line.terminal_below_150pct_share,
+                    "-o", lw=2, label=f"Start {cr0}%")
+        ax.set_title(c)
+        ax.set_xlabel("Assumed terminal collateral decline (%)")
+        ax.set_ylim(0, 105)
+    axes[0].set_ylabel("Below 150% at terminal month (%)")
+    axes[1].legend(frameon=False, fontsize=10)
     fig.tight_layout()
-    fig.savefig(figure_dir / "figure7.png")
-    plt.close(fig)
-
-    focus = stress[
-        (stress["collateral_type"] == "ETH")
-        & (stress["liquidation_penalty_pct"] == 13.0)
-    ]
-    fig, axes = plt.subplots(2, 2, figsize=(8.0, 7.2), sharex="col")
-    for column, currency in enumerate(("ARS", "TRY")):
-        subset = focus[focus["currency"] == currency]
-        for ratio in (150.0, 175.0, 200.0):
-            line = subset[subset["initial_collateral_ratio_pct"] == ratio]
-            axes[0, column].plot(
-                line["collateral_shock_pct"],
-                line["liquidated_positions_pct"],
-                marker="o",
-                label=f"CR {ratio:.0f}%",
-            )
-            axes[1, column].plot(
-                line["collateral_shock_pct"],
-                line["mean_risk_adjusted_benefit_pct"],
-                marker="o",
-                label=f"CR {ratio:.0f}%",
-            )
-        axes[0, column].set_title(currency)
-        axes[0, column].axhline(0, color="black", linewidth=0.8)
-        axes[1, column].axhline(0, color="black", linewidth=0.8)
-        axes[1, column].set_xlabel("Crypto-collateral price decline (%)")
-    axes[0, 0].set_ylabel("Positions breaching threshold (%)")
-    axes[1, 0].set_ylabel("Mean risk-adjusted benefit (%)")
-    axes[0, 1].legend(fontsize=8)
-    fig.suptitle("Liquidation and risk-adjusted outcomes (12 months, 20% rate, 13% penalty)")
-    fig.tight_layout()
-    fig.savefig(figure_dir / "figure8.png")
+    fig.savefig(out / "terminal_screen.png")
     plt.close(fig)
 
 
-def write_latex_tables(
-    construction: pd.DataFrame,
-    descriptive: pd.DataFrame,
-    gross: pd.DataFrame,
-    net: pd.DataFrame,
-    stress: pd.DataFrame,
-    expected_loss: pd.DataFrame,
-    assumptions: pd.DataFrame,
-    robustness: pd.DataFrame,
-    lifecycle: pd.DataFrame,
-    cost_sensitivity: pd.DataFrame,
-    output_dir: Path,
-) -> None:
-    def write_table(frame: pd.DataFrame, path: Path) -> None:
-        def latex_escape(value: object) -> str:
-            text = "" if pd.isna(value) else str(value)
-            text = text.replace("\\", "\0")
-            replacements = {
-                "&": r"\&",
-                "%": r"\%",
-                "$": r"\$",
-                "#": r"\#",
-                "_": r"\_",
-                "{": r"\{",
-                "}": r"\}",
-            }
-            for source, target in replacements.items():
-                text = text.replace(source, target)
-            return text.replace("\0", r"\textbackslash{}")
+def run(args: argparse.Namespace) -> dict:
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    draws = pd.read_csv(args.draws, low_memory=False)
+    lifecycles = pd.read_csv(args.lifecycles, low_memory=False)
+    fx = load_fx({"ARS": args.ars_fx, "TRY": args.try_fx})
+    fx.assign(month=fx.month.astype(str)).to_csv(args.output_dir / "fx_monthly_oecd_fred.csv", index=False)
+    count_frame, count_dist = urn_counts(draws)
+    count_frame.to_csv(args.output_dir / "urn_draw_counts.csv", index=False)
+    count_dist.to_csv(args.output_dir / "urn_draw_distribution.csv", index=False)
 
-        columns = list(frame.columns)
-        alignment = "l" + "r" * max(len(columns) - 1, 0)
-        lines = [
-            rf"\begin{{tabular}}{{{alignment}}}",
-            r"\toprule",
-            " & ".join(latex_escape(column) for column in columns) + r" \\",
-            r"\midrule",
-        ]
-        for row in frame.itertuples(index=False, name=None):
-            rendered = []
-            for value in row:
-                if isinstance(value, (float, np.floating)):
-                    rendered.append(f"{value:.2f}")
-                else:
-                    rendered.append(latex_escape(value))
-            lines.append(" & ".join(rendered) + r" \\")
-        lines.extend([r"\bottomrule", r"\end{tabular}", ""])
-        path.write_text("\n".join(lines), encoding="utf-8")
-
-    output_dir.mkdir(parents=True, exist_ok=True)
-    write_table(construction, output_dir / "table_sample_construction.tex")
-    write_table(descriptive, output_dir / "table_descriptive.tex")
-    write_table(gross, output_dir / "table_gross_fixed_horizons.tex")
-    net_12 = net[net["horizon_months"] == 12].copy()
-    write_table(net_12, output_dir / "table_net_12m.tex")
-    stress_focus = stress[
-        (stress["liquidation_penalty_pct"] == 13.0)
-        & (stress["initial_collateral_ratio_pct"] == 175.0)
-    ].copy()
-    write_table(stress_focus, output_dir / "table_stress_focus.tex")
-    write_table(expected_loss, output_dir / "table_expected_liquidation_loss.tex")
-    write_table(assumptions, output_dir / "table_assumptions.tex")
-    write_table(robustness, output_dir / "table_robustness.tex")
-    write_table(lifecycle, output_dir / "table_lifecycle.tex")
-    write_table(cost_sensitivity, output_dir / "table_cost_sensitivity.tex")
-
-
-def run(args: argparse.Namespace) -> dict[str, float | int | str]:
-    assumptions = CostAssumptions()
-    output_dir = args.output_dir
-    output_dir.mkdir(parents=True, exist_ok=True)
-    draws = pd.read_csv(args.draws)
-    lifecycles = pd.read_csv(args.lifecycles)
-    construction = pd.read_csv(args.construction)
-    fx = load_fx(args.ars_fx, args.try_fx)
-    fx.assign(month=fx["month"].astype(str)).to_csv(output_dir / "fx_monthly_oecd_fred.csv", index=False)
-
-    frames = [attach_fx(draws, fx, currency, horizon) for currency in ("ARS", "TRY") for horizon in HORIZONS]
-    all_horizons = pd.concat(frames, ignore_index=True)
-    all_horizons.to_csv(output_dir / "event_level_fixed_horizon_results.csv", index=False)
-
-    descriptive = descriptive_statistics(draws)
-    gross = horizon_summary(all_horizons)
-    net, break_even = net_summary(all_horizons, assumptions)
-    lifecycle = lifecycle_summary(lifecycles, fx, assumptions)
-    stress = collateral_stress(all_horizons, assumptions)
-    expected_loss = expected_liquidation_loss_summary(all_horizons, assumptions)
-    assumptions_frame = assumptions_table(assumptions)
-    robustness = robustness_summary(draws, fx)
-    cost_sensitivity = cost_sensitivity_summary(all_horizons)
-
-    tables = {
-        "dataset_descriptive_statistics.csv": descriptive,
-        "gross_fixed_horizon_summary.csv": gross,
-        "net_benefit_rate_sensitivity.csv": net,
-        "break_even_rate_summary.csv": break_even,
-        "observed_lifecycle_robustness.csv": lifecycle,
-        "collateral_liquidation_stress.csv": stress,
-        "liquidation_expected_loss_summary.csv": expected_loss,
-        "assumptions_parameters.csv": assumptions_frame,
-        "fx_matching_robustness.csv": robustness,
-        "execution_cost_sensitivity.csv": cost_sensitivity,
+    summaries, rate_rows, dep_rows, urn_rows, top_rows, months, size_rows = [], [], [], [], [], [], []
+    duration_parts, terminal_rows, duration_frames, fixed12 = [], [], {}, {}
+    for currency in CURRENCIES:
+        lookup = fx_lookup(fx, currency)
+        for h in HORIZONS:
+            frame = fixed_frame(draws, lookup, h)
+            adjusted = with_cashflows(frame, h/12)
+            summaries.append(metric(adjusted, "Fixed holding-period scenario", currency=currency, horizon=f"{h}m"))
+            if h == 12:
+                fixed12[currency] = adjusted
+            for rate in RATES:
+                cash = adjusted if rate == 0.20 else with_cashflows(frame, h/12, rate)
+                row = metric(cash, "Fixed holding-period scenario", currency=currency, horizon=f"{h}m")
+                row["annual_effective_rate_pct"] = 100 * rate
+                rate_rows.append(row)
+        twelve = fixed12[currency]
+        dep, urn = dependence(twelve, currency)
+        dep_rows.extend(dep)
+        urn_rows.append(urn)
+        concentration_rows, month_rows = concentration(twelve, currency)
+        top_rows.append(concentration_rows)
+        months.append(month_rows)
+        size_rows.extend(thresholds(twelve, currency, "Fixed 12m"))
+        terminal_rows.extend(terminal_screen(twelve, currency))
+        observed = prepare_lifecycles(lifecycles, lookup)
+        duration_frames[currency] = observed
+        summaries.append(metric(observed, "Clean observed duration", currency=currency, horizon="observed"))
+        size_rows.extend(thresholds(observed, currency, "Clean observed duration"))
+        duration_parts.append(duration_bins(observed, currency))
+    summary = pd.DataFrame(summaries)
+    rate = pd.DataFrame(rate_rows)
+    dep = pd.DataFrame(dep_rows)
+    urn = pd.concat(urn_rows, ignore_index=True)
+    top = pd.concat(top_rows, ignore_index=True)
+    monthly = pd.concat(months, ignore_index=True)
+    size = pd.DataFrame(size_rows)
+    duration = pd.concat(duration_parts, ignore_index=True)
+    terminal = pd.DataFrame(terminal_rows)
+    for name, data in {
+        "main_summary.csv": summary,
+        "rate_sensitivity.csv": rate,
+        "urn_robustness.csv": dep,
+        "urn_aggregate_12m.csv": urn,
+        "large_event_concentration.csv": top,
+        "origination_month_concentration.csv": monthly,
+        "position_size_sensitivity.csv": size,
+        "observed_duration_bands.csv": duration,
+        "terminal_collateral_ratio_screen.csv": terminal,
+    }.items():
+        data.to_csv(args.output_dir / name, index=False)
+    save_tables(args.latex_table_dir, summary, dep, size, top, duration, terminal)
+    save_figures(fx, duration_frames, monthly, terminal, args.figure_dir)
+    metadata = {
+        "draw_events": len(draws), "unique_urns": int(draws.urn.nunique()),
+        "total_drawn_dai": float(draws.borrowed_dai.sum()),
+        "observed_clean_spells_per_currency": {c: len(duration_frames[c]) for c in CURRENCIES},
+        "median_observed_days_per_currency": {c: float(duration_frames[c].duration_days.median()) for c in CURRENCIES},
+        "conditional_liquidation_cashflows": "Implemented and tested separately; not estimated from terminal-only shocks",
+        "risk_adjusted_median_removed": True,
+        "ars_interpretation": "Official monthly FX counterfactual only; no executable ARS series",
+        "fee_timing": "Paid in USD at origination; not financed",
+        "gas_scope": "Half at opening and half at voluntary close; only opening charged to borrower upon liquidation",
     }
-    for filename, frame in tables.items():
-        frame.to_csv(output_dir / filename, index=False)
-
-    write_latex_tables(
-        construction, descriptive, gross, net, stress, expected_loss, assumptions_frame,
-        robustness, lifecycle, cost_sensitivity,
-        args.latex_table_dir,
-    )
-    save_figures(draws, fx, all_horizons, net, break_even, stress, args.figure_dir)
-
-    validation = {
-        "final_draw_events": int(len(draws)),
-        "unique_urns": int(draws["urn"].nunique()),
-        "total_borrowed_dai": float(draws["borrowed_dai"].sum()),
-        "gross_result_rows": int(len(gross)),
-        "net_sensitivity_rows": int(len(net)),
-        "stress_scenario_rows": int(len(stress)),
-        "expected_loss_scenario_rows": int(len(expected_loss)),
-        "lifecycle_rows": int(lifecycle["eligible_clean_lifecycles"].sum()),
-        "cost_assumptions": assumptions.__dict__,
-        "all_2026_equal_fx_checks_removed": True,
-        "profit_terminology_used": False,
-    }
-    (output_dir / "validation_summary.json").write_text(json.dumps(validation, indent=2), encoding="utf-8")
-    return validation
+    (args.output_dir / "validation_summary.json").write_text(json.dumps(metadata, indent=2)+"\n")
+    return metadata
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--draws", type=Path, required=True)
-    parser.add_argument("--lifecycles", type=Path, required=True)
-    parser.add_argument("--construction", type=Path, required=True)
-    parser.add_argument("--ars-fx", type=Path, required=True)
-    parser.add_argument("--try-fx", type=Path, required=True)
-    parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--figure-dir", type=Path, required=True)
-    parser.add_argument("--latex-table-dir", type=Path, required=True)
-    args = parser.parse_args()
+    root = Path(__file__).resolve().parent.parent
+    p = argparse.ArgumentParser()
+    p.add_argument("--draws", type=Path, default=root/"data/processed/makerdao_eth_a_draw_events_analysis.csv")
+    p.add_argument("--lifecycles", type=Path, default=root/"data/processed/makerdao_eth_a_lifecycles.csv")
+    p.add_argument("--ars-fx", type=Path, default=root/"data/raw_fx/ars_usd_fred.csv")
+    p.add_argument("--try-fx", type=Path, default=root/"data/raw_fx/try_usd_fred.csv")
+    p.add_argument("--output-dir", type=Path, default=root/"results")
+    p.add_argument("--figure-dir", type=Path, default=root/"figures")
+    p.add_argument("--latex-table-dir", type=Path, default=root/"tables")
+    args = p.parse_args()
     print(json.dumps(run(args), indent=2))
 
 

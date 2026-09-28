@@ -16,7 +16,7 @@ No Dune Analytics query was used. The original manuscript requested a Dune ID, b
 
 ## MakerDAO contract interpretation
 
-- Vat documentation: <https://docs.makerdao.com/smart-contract-modules/core-module/vat-detailed-documentation>.
+- Vat documentation (current official Sky Protocol docs, including urn ink/art, collateral rate and frob/grab): <https://developers.skyeco.com/protocol/core/vat/>. The earlier MakerDAO URL redirects to the Sky documentation as of 28 September 2026.
 - Vat address used by the source query: `0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B`.
 - `frob(bytes32,address,address,address,int256,int256)` selector: `0x76088703`.
 - Event definition: ETH-A `frob` with positive signed `dart`.
@@ -46,4 +46,3 @@ The series are official monthly averages from OECD Main Economic Indicators, dis
 ## Missing values and horizon matching
 
 FX dates are converted to monthly periods. Each debt-draw month is matched to the corresponding month and to month plus 3, 6, 12, or 24. Eligible observations require both endpoints. No endpoint interpolation is performed. The adjacent-month robustness check uses the highest of the three start-window rates and the lowest of the three end-window rates, which is adverse to the borrower under the stated units.
-

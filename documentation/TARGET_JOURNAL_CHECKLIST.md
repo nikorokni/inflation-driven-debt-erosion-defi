@@ -10,15 +10,15 @@ Official sources checked on 10 August 2026:
 | Item | Status | Evidence or action |
 |---|---|---|
 | English manuscript with title, author affiliations, abstract, and keywords | Addressed | `manuscript/main.tex` |
-| Clear novelty, research questions, and contribution statement | Addressed | Introduction and related-work gap matrix |
+| Clear contribution and empirical limits | Addressed | Introduction, Methods, and Limitations |
 | Numbered sections, equations, tables, and figures | Addressed | Compiled manuscript |
-| Data and code availability statements | Addressed | End matter and public repository link |
+| Data and code availability statements | Addressed | End matter and accompanying revision package; verify updated GitHub commit before submission |
 | Reproducible extraction and source provenance | Addressed | `documentation/SOURCES.md`, `source_query.sql`, decoder |
 | Editable source and compiled PDF | Addressed | `manuscript/main.tex`, `manuscript/main.pdf` |
-| High-resolution figures with captions and source notes | Addressed | 300-dpi PNGs in `figures/` and manuscript captions |
-| Reference list complete and consistently formatted | Addressed | Manual `thebibliography` in `main.tex` |
+| Legible figures with captions and source notes | Addressed | Revised 220-dpi PNGs in `figures/` and manuscript captions |
+| Reference list consistently formatted | Addressed | `manuscript/references.tex` |
 | Conflict-of-interest, funding, and ethics statements | Addressed | Declarations section |
-| Research data linked to the article | Addressed | Public GitHub replication package |
+| Research data linked to the article | Confirm before submission | Verify the revised code and outputs have been published to the linked GitHub repository |
 | Journal-specific document class/template | Confirm before submission | Current source uses `sn-jnl`; migrate only after the final target and article type are confirmed |
 | Article type, word limit, and figure/table limits | Confirm before submission | Recheck the live Guide for Authors at submission time |
 | CRediT author-contribution statement | Author confirmation required | Roles must be supplied and approved by all authors; not inferred by the analysis code |
@@ -28,4 +28,3 @@ Official sources checked on 10 August 2026:
 | Suggested/excluded reviewers | Author/editorial choice | Not part of the replication package |
 
 The live guide should be checked again immediately before submission because editorial requirements can change.
-

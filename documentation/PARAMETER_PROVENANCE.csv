@@ -1,0 +1,17 @@
+item,value_or_rule,status,source_or_rationale
+MakerDAO positive ETH-A debt draws,130742 observed events,archived decoded on-chain trace sample,documented source archive and decoder
+Urn identifiers,16846 observed vault IDs,archived trace field,not verified people
+Clean selected repaid spells,7105 per currency with FX coverage,reconstructed from restricted traces,selection is not representative survival
+ARS official monthly FX,ARGCCUSMA02STM,observed official macro series,OECD Main Economic Indicators via FRED archived CSV
+TRY official monthly FX,CCUSMA02TRM618N,observed official macro series,OECD Main Economic Indicators via FRED archived CSV
+Executable ARS rate,unavailable,unobserved,do not equate official FX with parallel or accessible price
+Fixed horizons,3 6 12 24 months,imposed holding scenarios,not observed spell durations
+Borrowing annual rate,20 percent effective annual baseline plus 5 10 40 80 120 percent sensitivity,illustrative assumption,not estimated deployed LCU protocol rate
+Protocol fee,0.5 percent of origination USD principal paid externally at opening,illustrative assumption,not financed
+Conversion friction,0.3 percent opening and 0.3 percent voluntary closing,illustrative assumption,not an observed executable spread
+Gas,USD 20 opening and USD 20 voluntary closing,illustrative assumption,not transaction-level measured
+Collateral initial ratio,150 175 200 percent,illustrative terminal screen,not observed LCU vault states
+Terminal collateral decline,0 10 25 40 60 percent,illustrative deterministic grid,no shock probabilities inferred
+Threshold,150 percent of accrued debt,illustrative terminal screen,not actual auction observation
+Liquidation nonrecourse,borrower relinquishes sold collateral and no planned-horizon second repayment,conditional legal/accounting assumption,requires contract-specific verification
+Auction haircut and penalty,parameters in conditional ledger only,unestimated,excluded from empirical expected outcomes

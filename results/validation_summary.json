@@ -1,17 +1,18 @@
 {
-  "final_draw_events": 130742,
+  "draw_events": 130742,
   "unique_urns": 16846,
-  "total_borrowed_dai": 13318097854.94336,
-  "gross_result_rows": 8,
-  "net_sensitivity_rows": 48,
-  "stress_scenario_rows": 162,
-  "expected_loss_scenario_rows": 54,
-  "lifecycle_rows": 14210,
-  "cost_assumptions": {
-    "protocol_fee_fraction": 0.005,
-    "swap_slippage_fraction_each_way": 0.003,
-    "gas_usd_round_trip": 40.0
+  "total_drawn_dai": 13318097854.94336,
+  "observed_clean_spells_per_currency": {
+    "ARS": 7105,
+    "TRY": 7105
   },
-  "all_2026_equal_fx_checks_removed": true,
-  "profit_terminology_used": false
+  "median_observed_days_per_currency": {
+    "ARS": 6.946782407407407,
+    "TRY": 6.946782407407407
+  },
+  "conditional_liquidation_cashflows": "Implemented and tested separately; not estimated from terminal-only shocks",
+  "risk_adjusted_median_removed": true,
+  "ars_interpretation": "Official monthly FX counterfactual only; no executable ARS series",
+  "fee_timing": "Paid in USD at origination; not financed",
+  "gas_scope": "Half at opening and half at voluntary close; only opening charged to borrower upon liquidation"
 }
