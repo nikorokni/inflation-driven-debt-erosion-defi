@@ -18,6 +18,6 @@ if command -v latexmk >/dev/null 2>&1; then
   (cd "$replication_root/documentation" && latexmk -pdf -interaction=nonstopmode -halt-on-error BORROWER_CASHFLOW_MODEL.tex)
 fi
 if command -v pandoc >/dev/null 2>&1 && command -v xelatex >/dev/null 2>&1; then
-  (cd "$replication_root/documentation" && pandoc RESPONSE_TO_REVIEWERS.md --pdf-engine=xelatex -V papersize=a4 -o RESPONSE_TO_REVIEWERS.pdf)
+  (cd "$replication_root/documentation" && pandoc RESPONSE_TO_SALMA.md --pdf-engine=xelatex -V papersize=a4 -o RESPONSE_TO_SALMA.pdf)
 fi
 echo "Updated machine-readable results, tables, figures and available PDFs."

@@ -25,6 +25,6 @@ Official sources checked on 10 August 2026:
 | Corresponding-author and coauthor approval | Author confirmation required | Confirm identities, order, emails, and consent before submission |
 | Generative-AI disclosure, if required by current policy | Author confirmation required | Follow the journal's live disclosure policy at submission |
 | Highlights, graphical abstract, or separate cover letter | Confirm before submission | Prepare only if required for the selected article type |
-| Suggested/excluded reviewers | Author/editorial choice | Not part of the replication package |
+| Salma's suggested/excluded editorial names | Author/editorial choice | Not part of the replication package |
 
 The live guide should be checked again immediately before submission because editorial requirements can change.

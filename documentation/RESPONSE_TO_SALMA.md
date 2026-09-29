@@ -6,9 +6,9 @@ geometry: margin=23mm
 fontsize: 10pt
 ---
 
-Dear Reviewer,
+Dear Salma,
 
-Thank you for the careful and constructive review. I rebuilt the borrower accounting before revising the conclusions. I have removed the previously reported scenario-weighted risk-adjusted medians: the earlier calculation combined final-horizon repayment with a liquidation penalty, and terminal shock assumptions cannot identify an actual liquidation path. I reran the empirical analysis using the archived MakerDAO event and lifecycle files and the included official FX series. The revised manuscript, executable code, generated results and model note are in the accompanying package.
+I am sending you my point-by-point revision record. I rebuilt the borrower accounting before revising the conclusions. I have removed the previously reported scenario-weighted risk-adjusted medians: the earlier calculation combined final-horizon repayment with a liquidation penalty, and terminal shock assumptions cannot identify an actual liquidation path. I reran the empirical analysis using the archived MakerDAO event and lifecycle files and the included official FX series. The revised manuscript, executable code, generated results and model note are in the accompanying package.
 
 ## Principal comment: repayment and liquidation are different outcomes
 

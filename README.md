@@ -3,7 +3,7 @@
 **Counterfactual evidence from MakerDAO ETH-A draws**
 Niko Rokni Lamouki and Salma Soofiyan
 
-[Revised paper](manuscript/main.pdf) · [Response to reviewer](documentation/RESPONSE_TO_REVIEWERS.pdf) · [Conditional cash-flow note](documentation/BORROWER_CASHFLOW_MODEL.pdf)
+[Revised paper](manuscript/main.pdf) · [Response for Salma](documentation/RESPONSE_TO_SALMA.pdf) · [Conditional cash-flow note](documentation/BORROWER_CASHFLOW_MODEL.pdf)
 
 This is a **counterfactual accounting exercise**, not observed ARS/TRY borrowing, realised profit, an estimated liquidation probability or a protocol-solvency test. The repository name preserves its historical GitHub URL; the revised paper title correctly names the measured *FX depreciation*.
 
