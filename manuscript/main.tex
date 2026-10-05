@@ -7,26 +7,30 @@
 \raggedbottom
 \hypersetup{
  pdftitle={FX-Driven Debt Erosion in Local-Currency DeFi Lending: Counterfactual Evidence from MakerDAO ETH-A Draws},
- pdfauthor={Niko Rokni Lamouki; Salma Soofiyan},
+ pdfauthor={Niko Rokni Lamouki; Salma Soofiyan; Julie Wall},
  pdfsubject={Observed loan duration and hypothetical fixed-horizon FX debt erosion},
  pdfkeywords={DeFi, foreign exchange, MakerDAO, loan duration, borrower cash flows}
 }
 \begin{document}
 \title[FX-Driven Debt Erosion in DeFi]{FX-Driven Debt Erosion in Local-Currency DeFi Lending: Counterfactual Evidence from MakerDAO ETH-A Draws}
-\author*[1]{\fnm{Niko} \sur{Rokni Lamouki}}
-\email{niko.rokni@gmail.com}
+\author[1]{\fnm{Niko} \sur{Rokni Lamouki}}
 \author[1]{\fnm{Salma} \sur{Soofiyan}}
-\affil*[1]{\orgdiv{School of Architecture, Computing and Engineering},
+\author*[2]{\fnm{Julie} \sur{Wall}}
+\email{julie.wall@uwl.ac.uk}
+\affil[1]{\orgdiv{School of Architecture, Computing and Engineering},
 \orgname{University of East London},
 \orgaddress{\street{Docklands Campus}, \city{London}, \postcode{E16 2RD}, \country{United Kingdom}}}
-\abstract{We map 130,742 MakerDAO ETH-A debt-draw events to hypothetical loans denominated in Argentine pesos (ARS) or Turkish lira (TRY), using monthly official exchange rates. The 7,105 reconstructed clean, repaid spells with exchange-rate coverage have a median observed duration of 6.95 days; under an illustrative 20\% effective annual rate and stated costs, the counterfactual median net benefits over those observed durations are $-3.00$\% (ARS) and $-4.14$\% (TRY). At a hypothetical 12-month holding period, the corresponding medians are 2.67\% and 6.59\%; these are not observed-duration or realised trading outcomes. Draws from the same urn are dependent, and the largest 1\% account for 72.49\% and 66.85\% of signed 12-month net benefits, respectively. We separate voluntary repayment from nonrecourse collateral close-out: a liquidated borrower does not repay again at the planned horizon. Earlier scenario-weighted risk-adjusted medians are withdrawn because terminal shocks and arbitrary weights do not identify liquidation timing or expected cash flows. The collateral exercise is now only a terminal-ratio diagnostic. Neither executable ARS conversion nor protocol solvency is estimated.}
+\affil*[2]{\orgdiv{School of Computing and Engineering},
+\orgname{University of West London},
+\orgaddress{\city{London}, \postcode{W5 5RF}, \country{United Kingdom}}}
+\abstract{We map 130,742 MakerDAO ETH-A debt-draw events to hypothetical loans denominated in Argentine pesos (ARS) or Turkish lira (TRY), using monthly official exchange rates. The 7,105 reconstructed clean, repaid spells with exchange-rate coverage have a median observed duration of 6.95 days; under an illustrative 20\% effective annual rate and stated costs, the counterfactual median net benefits over those observed durations are $-3.00$\% (ARS) and $-4.14$\% (TRY). At a hypothetical 12-month holding period, the corresponding medians are 2.67\% and 6.59\%; these are not observed-duration or realised trading outcomes. Draws from the same urn are dependent, and the largest 1\% account for 72.49\% and 66.85\% of signed 12-month net benefits, respectively. We separate voluntary repayment from nonrecourse collateral close-out: a liquidated borrower does not repay again at the planned horizon. We do not report scenario-weighted risk-adjusted medians because terminal shocks and arbitrary weights do not identify liquidation timing or expected cash flows. The collateral exercise is a terminal-ratio diagnostic. Neither executable ARS conversion nor protocol solvency is estimated.}
 \keywords{Decentralized finance, foreign exchange, local-currency borrowing, MakerDAO, borrower cash flow, liquidation}
 \maketitle
 
 \section{Introduction}
 A borrower who owes a fixed number of local-currency units (LCU) can face a smaller USD-equivalent claim after that currency depreciates. This is a foreign-exchange accounting effect, not a measurement of consumer-price inflation. Whether it survives financing costs depends on the loan duration, position size, feasible exchange rates, and collateral outcome. A MakerDAO ETH-A draw is a DAI-denominated transaction, not evidence that anyone borrowed ARS or TRY stablecoins.
 
-This revision places short reconstructed loan spells before long holding-period scenarios. It also corrects an earlier liquidation treatment that charged a borrower both for collateral seizure and for full repayment at the planned horizon. The revised empirical question is what observed draw sizes and timestamps imply under specified \emph{hypothetical} local-currency debt and voluntary-repayment assumptions. The collateral analysis asks only whether a terminal mark would fall below an assumed threshold. It cannot identify an actual liquidation time, auction result, or borrower return in that branch.
+We place short reconstructed loan spells before long holding-period scenarios and distinguish voluntary repayment from nonrecourse collateral close-out. A liquidated borrower does not also repay the debt at the planned horizon. The empirical question is what observed draw sizes and timestamps imply under specified \emph{hypothetical} local-currency debt and voluntary-repayment assumptions. The collateral analysis asks only whether a terminal mark would fall below an assumed threshold. It cannot identify an actual liquidation time, auction result, or borrower return in that branch.
 
 The contribution is an auditable mapping from public on-chain draws and official FX rates to conditional borrower-side accounting, with robustness to repeated draws, small positions, duration, and concentration. The loss-allocation framework also explains why borrower figures do not establish a stablecoin peg or protocol solvency. Prior work on lending and liquidation motivates the distinction between a collateral threshold and an executed sale \cite{Schar2021,Qin2021Liquidations,Werner2022}. Stablecoin research separates redemption and arbitrage from the value of an individual loan \cite{Lyons2023,KlagesMundt2022,GortonZhang2023}.
 
@@ -126,7 +130,7 @@ $H$ is cash returned to the borrower; $W$ is the unrecovered loan claim. $V-H$ i
 
 For illustration, with $P=100$, $D(\tau)=100$, collateral worth $180$, no other costs or haircut, and a 10\% penalty, recovery is $100$, penalty $10$, residual $70$, and $B^{\rm liq}=-10$. With collateral worth $60$, recovery is $60$, residual and penalty are zero, and the $40$ shortfall is an asset impairment. The corresponding borrower-side incremental amount is $100-60=40$ under the \emph{assumed nonrecourse} comparator: it transfers a loss to claimholders and is not a safe trading return. Executable checks cover surplus, shortfall, haircut, cost timing and the absence of double repayment.
 
-The available collateral shocks do not reveal $\tau$, oracle state, auction proceeds or haircut. Equation~\eqref{eq:liquidation} is an implemented \emph{conditional ledger}, but this paper does not aggregate it into an expected benefit. The earlier scenario-weighted risk-adjusted medians are withdrawn.
+The available collateral shocks do not reveal $\tau$, oracle state, auction proceeds or haircut. Equation~\eqref{eq:liquidation} is an implemented \emph{conditional ledger}, but this paper does not aggregate it into an expected benefit. We therefore do not report scenario-weighted risk-adjusted medians.
 
 \subsection{Terminal collateral-ratio diagnostic}
 For a diagnostic at a hypothetical 12-month endpoint only, initial collateral worth $c_0P_i$ loses a stipulated fraction $q$ and has ratio
@@ -137,7 +141,7 @@ I_{i,12}^{\rm terminal}
 =\mathbf{1}\{{\rm CR}_{i,12}^{\rm terminal}<1.50\}.
 \label{eq:terminal}
 \end{equation}
-A breach share is the percentage of \emph{event mappings} below an assumed 150\% threshold \emph{at month 12}. It is not the probability of ever crossing the threshold or completing an auction. The generic $q$ values 0, 10, 25, 40 and 60\% are stipulated terminal declines. ETH and BTC would produce identical results under identical percentage shocks, so this revision attaches neither asset names nor arbitrary probabilities to the grid.
+A breach share is the percentage of \emph{event mappings} below an assumed 150\% threshold \emph{at month 12}. It is not the probability of ever crossing the threshold or completing an auction. The generic $q$ values 0, 10, 25, 40 and 60\% are stipulated terminal declines. ETH and BTC would produce identical results under identical percentage shocks, so we attach neither asset names nor arbitrary probabilities to the grid.
 
 \section{Empirical design and robustness}
 Each draw is mapped to 3-, 6-, 12- and 24-month official-rate holding \emph{scenarios}; these are not measured MakerDAO durations. Clean spells use observed start/end timestamps and $t=\text{days}/365.25$, with monthly FX at the endpoints. We report event medians, positive shares, and $\sum_i B_i/\sum_iP_i$; the last is a \emph{signed amount-weighted ratio}, not an average borrower's return. Means remain in machine-readable files but can be extremely negative for tiny draws facing fixed gas.
@@ -155,7 +159,7 @@ The unit changes the question. An event median weights an urn with many draws ma
 \end{table*}
 The clean spell median is 6.95 days, and the hypothetical net median over \emph{those durations} is $-3.00\%$ for ARS and $-4.14\%$ for TRY (Table~\ref{tab:main}). Only 13.03\% and 14.55\% of mappings are net positive. Monthly-average FX makes same-month entry and exit mechanically equal even if an intra-month market move occurred. Selection for clean repayment precludes interpreting these results as a typical return or as an estimate of all-vault duration.
 
-For comparison, with every draw timestamp artificially held open for 12 months, gross median FX effects are 24.61\% and 25.30\%, while revised voluntary-repayment net medians are 2.67\% and 6.59\%. Holding for 24 months yields net medians of 25.58\% and 37.19\%. This chiefly contrasts \emph{assumed horizons} with selected short spells; no typical borrower is shown to have captured the longer effect. The complete borrowing-rate grid is in \texttt{results/rate\_sensitivity.csv}.
+For comparison, with every draw timestamp artificially held open for 12 months, gross median FX effects are 24.61\% and 25.30\%, while voluntary-repayment net medians are 2.67\% and 6.59\%. Holding for 24 months yields net medians of 25.58\% and 37.19\%. This chiefly contrasts \emph{assumed horizons} with selected short spells; no typical borrower is shown to have captured the longer effect. The complete borrowing-rate grid is in \texttt{results/rate\_sensitivity.csv}.
 \begin{table*}[t]
 \caption{Selected clean-spell duration bands. Net values are hypothetical LCU financing benefits evaluated at observed spell lengths. N is the number of repaid spells per currency band, not people. Positive is the percentage with positive conditional net benefit.}
 \label{tab:duration}\centering\small
@@ -226,10 +230,10 @@ These inputs contain no observed LCU token liabilities, unrestricted reserves, a
 Official FX averages are not necessarily executable, especially in ARS; an unknown parallel premium has no known bias direction. Clean spells are selected and have coarse monthly FX marks. Repeated draws share urn-level risks and calendar FX shocks; no causal, confidence-interval or independent-borrower claim follows. Fixed horizons are hypothetical and cannot be inferred from clean duration. Fees, gas, conversion friction and interest rates are scenarios, not observed transaction prices for a hypothetical LCU protocol. Large positions omit market impact. The liquidation ledger assumes nonrecourse, while within-horizon collateral prices, oracles, auction discounts and settlement times are unavailable. Terminal ratios cannot identify expected cash flows. Peg stability, reserve adequacy, governance backstops, taxes and legal exchange access remain outside this dataset.
 
 \section{Conclusion}
-The most directly observed duration fact is that the restricted clean, repaid MakerDAO spells last a median 6.95 days. When those lengths are mapped into hypothetical local-currency debt at official monthly FX rates and illustrative costs, median net effects are negative for both ARS and TRY. Positive medians at 12 and 24 months apply to \emph{counterfactual holding periods}; amount-weighted aggregates are highly concentrated among large draws and particular months. The corrected liquidation ledger prevents double repayment, while the available collateral inputs justify only a terminal ratio sensitivity, not an expected borrower outcome. This is a transparent FX-financing accounting exercise and its limits; it does not validate a deployed protocol or its solvency.
+The most directly observed duration fact is that the restricted clean, repaid MakerDAO spells last a median 6.95 days. When those lengths are mapped into hypothetical local-currency debt at official monthly FX rates and illustrative costs, median net effects are negative for both ARS and TRY. Positive medians at 12 and 24 months apply to \emph{counterfactual holding periods}; amount-weighted aggregates are highly concentrated among large draws and particular months. The state-dependent liquidation ledger prevents double repayment, while the available collateral inputs justify only a terminal ratio sensitivity, not an expected borrower outcome. This is a transparent FX-financing accounting exercise and its limits; it does not validate a deployed protocol or its solvency.
 
 \section*{Data and code availability}
-The accompanying revision package contains processed event and lifecycle files, archived official FX inputs, source query and checksum, executable borrower cash-flow model, tests, generated result tables, figures and build instructions. The repository is \url{https://github.com/nikorokni/inflation-driven-debt-erosion-defi}; readers should use the revision commit once its upload is confirmed. The original public MakerDAO archive is linked with a checksum in the package rather than duplicated.
+The public reproducibility package contains processed event and lifecycle files, archived official FX inputs, source query and checksum, executable borrower cash-flow model, tests, generated result tables, figures and build instructions. The repository is \url{https://github.com/nikorokni/inflation-driven-debt-erosion-defi}. The original public MakerDAO archive is linked with a checksum in the package rather than duplicated.
 
 \section*{Declarations}
 \textbf{Conflict of interest.} No conflict of interest was reported.\\
