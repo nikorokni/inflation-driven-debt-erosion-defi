@@ -6,7 +6,7 @@
 \begin{document}
 \begin{center}
 {\Large \bfseries Conditional borrower cash flows and liquidation close-out}\\[2mm]
-{\small Niko Rokni Lamouki \quad | \quad Model note for the major revision, 28 September 2026}
+{\small Niko Rokni Lamouki \quad | \quad Conditional accounting note}
 \end{center}
 \vspace{1mm}
 \noindent\textbf{State and counterfactual.} Original draw $P$ is USD-equivalent DAI; a hypothetical local-currency debt starts at $PE_0$, where $E$ is local currency per USD. The effective annual local borrowing rate $r$ gives $D(t)=P(E_0/E_t)(1+r)^t$. The comparator is the same borrower retaining the original collateral without borrowing. Draw proceeds are assumed held at par; profits, reinvestment, taxes and actual local-token trades are not observed.
@@ -46,5 +46,5 @@ Collateral shortfall; $\lambda=13\%$ & 60 & 60 & 0 & 0 & 40 & 40\\
 \noindent For every sale, $R+W=D$ and $R+\Pi+H=S$. Borrower collateral opportunity cost is $V-H$, never $V-H$ \emph{plus} a separate repayment. These identities are checked in the executable tests.
 
 \medskip
-\noindent\textbf{Empirical identification boundary.} The data supply official monthly FX and static terminal collateral shocks, not a within-horizon price path, actual $\tau$, auction price or probability weights. The reported collateral result is solely a terminal ratio $c_0P(1-q)/D(1)$ below a stipulated threshold. It is not an executed-liquidation probability or expected borrower outcome.
+\noindent\textbf{Empirical identification boundary.} The data supply official monthly FX and daily published reference marks for selected spells, but not an intraday executable quote, within-horizon collateral path, actual $\tau$, auction price or probability weights. The reported collateral result is solely a terminal ratio $c_0P(1-q)/D(1)$ below a stipulated threshold. It is not an executed-liquidation probability or expected borrower outcome.
 \end{document}

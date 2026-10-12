@@ -11,6 +11,7 @@ if [[ $# -eq 1 ]]; then
 fi
 
 python "$replication_root/tests/test_borrower_cashflows.py"
+python "$replication_root/tests/test_daily_fx.py"
 python "$replication_root/analysis/reproduce_analysis.py"
 
 if command -v latexmk >/dev/null 2>&1; then

@@ -10,9 +10,27 @@
     "ARS": 6.946782407407407,
     "TRY": 6.946782407407407
   },
+  "observed_fx_frequency_diagnostics": {
+    "ARS": {
+      "currency": "ARS",
+      "same_month_spells_pct": 57.21323011963406,
+      "same_month_daily_nonzero_gross_pct": 57.07257072570726,
+      "daily_quote_lag_median_days": 0.0,
+      "daily_quote_lag_p95_days": 2.0,
+      "daily_quote_lag_max_days": 4
+    },
+    "TRY": {
+      "currency": "TRY",
+      "same_month_spells_pct": 57.21323011963406,
+      "same_month_daily_nonzero_gross_pct": 58.62238622386224,
+      "daily_quote_lag_median_days": 0.0,
+      "daily_quote_lag_p95_days": 2.0,
+      "daily_quote_lag_max_days": 4
+    }
+  },
   "conditional_liquidation_cashflows": "Implemented and tested separately; not estimated from terminal-only shocks",
   "risk_adjusted_median_removed": true,
-  "ars_interpretation": "Official monthly FX counterfactual only; no executable ARS series",
+  "ars_interpretation": "Official reference-rate counterfactual only; no executable ARS series",
   "fee_timing": "Paid in USD at origination; not financed",
   "gas_scope": "Half at opening and half at voluntary close; only opening charged to borrower upon liquidation"
 }

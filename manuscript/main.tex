@@ -23,7 +23,7 @@
 \affil*[2]{\orgdiv{School of Computing and Engineering},
 \orgname{University of West London},
 \orgaddress{\city{London}, \postcode{W5 5RF}, \country{United Kingdom}}}
-\abstract{We map 130,742 MakerDAO ETH-A debt-draw events to hypothetical loans denominated in Argentine pesos (ARS) or Turkish lira (TRY), using monthly official exchange rates. The 7,105 reconstructed clean, repaid spells with exchange-rate coverage have a median observed duration of 6.95 days; under an illustrative 20\% effective annual rate and stated costs, the counterfactual median net benefits over those observed durations are $-3.00$\% (ARS) and $-4.14$\% (TRY). At a hypothetical 12-month holding period, the corresponding medians are 2.67\% and 6.59\%; these are not observed-duration or realised trading outcomes. Draws from the same urn are dependent, and the largest 1\% account for 72.49\% and 66.85\% of signed 12-month net benefits, respectively. We separate voluntary repayment from nonrecourse collateral close-out: a liquidated borrower does not repay again at the planned horizon. We do not report scenario-weighted risk-adjusted medians because terminal shocks and arbitrary weights do not identify liquidation timing or expected cash flows. The collateral exercise is a terminal-ratio diagnostic. Neither executable ARS conversion nor protocol solvency is estimated.}
+\abstract{We use 130,742 MakerDAO ETH-A debt draws as a source of observed principal sizes and timestamps for hypothetical Argentine-peso (ARS) and Turkish-lira (TRY) loans, not as a representative sample of local-currency borrowers. The 7,105 selected clean, repaid spells with exchange-rate coverage last a median 6.95 days. Matching their endpoints to published daily official reference rates gives median counterfactual net benefits of $-2.86$\% (ARS) and $-4.30$\% (TRY) under an illustrative 20\% effective annual borrowing rate and specified costs. Monthly OECD/FRED marks give $-3.00$\% and $-4.14$\% for the same spells and mechanically suppress same-month FX movement. The corresponding 12-month medians, 2.67\% and 6.59\%, impose a holding period on all eligible draws and are not observed borrowing outcomes. Borrowing-rate and position-size sensitivities, repeated draws by urn, and concentration among large positions limit generalisation. Daily published reference quotes are retrospective marks, not demonstrated executable conversion prices, especially for ARS. Conditional collateral-sale accounting is kept separate from the empirical repayment comparisons; neither liquidation frequency nor protocol solvency is estimated.}
 \keywords{Decentralized finance, foreign exchange, local-currency borrowing, MakerDAO, borrower cash flow, liquidation}
 \maketitle
 
@@ -32,7 +32,7 @@ A borrower who owes a fixed number of local-currency units (LCU) can face a smal
 
 We place short reconstructed loan spells before long holding-period scenarios and distinguish voluntary repayment from nonrecourse collateral close-out. A liquidated borrower does not also repay the debt at the planned horizon. The empirical question is what observed draw sizes and timestamps imply under specified \emph{hypothetical} local-currency debt and voluntary-repayment assumptions. The collateral analysis asks only whether a terminal mark would fall below an assumed threshold. It cannot identify an actual liquidation time, auction result, or borrower return in that branch.
 
-The contribution is an auditable mapping from public on-chain draws and official FX rates to conditional borrower-side accounting, with robustness to repeated draws, small positions, duration, and concentration. The loss-allocation framework also explains why borrower figures do not establish a stablecoin peg or protocol solvency. Prior work on lending and liquidation motivates the distinction between a collateral threshold and an executed sale \cite{Schar2021,Qin2021Liquidations,Werner2022}. Stablecoin research separates redemption and arbitrage from the value of an individual loan \cite{Lyons2023,KlagesMundt2022,GortonZhang2023}.
+The contribution is an auditable mapping from public on-chain draws and official FX rates to conditional borrower-side accounting, with daily marks for short spells and robustness to borrowing rates, repeated draws, small positions, duration, and concentration. Collateral-sale and balance-sheet identities delimit the analysis rather than provide empirical solvency estimates. Prior work on lending and liquidation motivates the distinction between a collateral threshold and an executed sale \cite{Schar2021,Qin2021Liquidations,Werner2022}. Stablecoin research separates redemption and arbitrage from the value of an individual loan \cite{Lyons2023,KlagesMundt2022,GortonZhang2023}.
 
 \section{Related research and scope}
 The relevant economic mechanism is a change in the dollar value of a fixed \emph{nominal foreign-currency liability}. It need not coincide with consumer-price inflation: an ARS or TRY price index and an ARS/USD or TRY/USD exchange rate answer different questions. A borrower who retains dollar-valued proceeds while owing a fixed number of LCU units may experience an accounting reduction in dollar debt after depreciation. Whether that accounting effect can be obtained in a market depends on an accessible conversion rate, the cost of acquiring the repayment token and the time for which the loan remains open. This is why we compare selected observed loan durations with imposed longer horizons and refrain from describing an official FX mark as an executable trade.
@@ -65,15 +65,19 @@ Reconstructed clean, repaid spells before FX coverage & 7,947 \\
 \end{table*}
 The resulting debt-change distribution is highly skewed: the median is 4,792 DAI, the mean 101,865 DAI and the maximum 150.45 million DAI. These values are independently recoverable from the tracked processed event file. The transaction hash and urn remain attached to each event for auditing. A positive \texttt{dart} can represent a further draw from an existing vault; neither the number of rows nor the number of urns identifies the number of people. In particular, a draw does not establish the time at which its associated debt was ultimately repaid.
 
-We reconstruct a restricted subset of single-draw, single-repayment, non-forked clean spells. There are 7,105 spells with usable monthly FX endpoints for each currency. Their median observed duration is 6.95 days. These are selected repaid spells and cannot estimate the duration or liquidation frequency of all vaults. Observed timestamps determine duration, while all ARS/TRY cash flows remain \emph{counterfactual}; MakerDAO did not issue an LCU loan.
+MakerDAO is useful here because ETH-A debt draws provide recorded principal changes, UTC event times and urn identifiers under a transparent on-chain collateralised-debt mechanism. We map a DAI draw's USD-equivalent size and calendar exposure to a \emph{stipulated} LCU liability, then vary the hypothetical closing date; this holds the size and timing inputs fixed while exposing the effect of an FX path and costs. It does not follow that ARS or TRY borrowers would choose those loan sizes or entry months, face the same collateral constraints, or have access to equivalent liquidity. These data have one asset type and one historical adoption window, repeated activity within urns, skewed sizes and selected reconstructible closures. Thus neither the event distribution nor the clean-spell duration distribution represents an LCU credit market. We report size floors, urn summaries and month concentration to make these constraints visible, not to claim external validity.
+
+We reconstruct a restricted subset of single-draw, single-repayment, non-forked clean spells. There are 7,105 spells with both monthly and daily FX coverage for each currency. Their median observed duration is 6.95 days. These are selected repaid spells and cannot estimate the duration or liquidation frequency of all vaults. Observed timestamps determine duration, while all ARS/TRY cash flows remain \emph{counterfactual}; MakerDAO did not issue an LCU loan.
 
 \begin{figure*}[t]\centering
 \includegraphics[width=.93\textwidth]{figures/observed_duration.png}
 \caption{Duration of 7,105 restricted clean, repaid spells with FX coverage per currency. The same selected spells are mapped to ARS and TRY; the horizontal axis is logarithmic. This subset is not a survival distribution for all draws.}\label{fig:duration}
 \end{figure*}
 
-\subsection{Official exchange rates}
-$E_t$ denotes official LCU per USD. Archived monthly-average series \texttt{ARGCCUSMA02STM} and \texttt{CCUSMA02TRM618N} are from OECD Main Economic Indicators via FRED \cite{FREDARS,FREDTRY}. We use the draw's calendar month and either a prespecified $h$-month terminal month or the clean spell's repayment month; same-month spells receive the same monthly FX rate at entry and exit. These are \emph{official-rate counterfactuals}. An Argentine rate accessible to a user under capital controls may differ materially from this official series. No independently vetted parallel-market series is added, so none of these numbers is labelled executable. An adjacent-month timing change cannot resolve market access.
+\subsection{Published exchange-rate references}
+$E_t$ denotes LCU per USD. The fixed-horizon scenarios retain archived OECD monthly-average series \texttt{ARGCCUSMA02STM} and \texttt{CCUSMA02TRM618N} distributed through FRED \cite{FREDARS,FREDTRY}. Using these same monthly series for a seven-day spell is problematic: entry and exit in one calendar month share one rate and gross FX benefit becomes exactly zero. For the observed-duration analysis we therefore use archived daily published references: the BCRA Communication A3500 wholesale ARS/USD reference \cite{BCRADaily} and the ECB's TRY/EUR rate divided by its USD/EUR rate to obtain TRY/USD \cite{ECBDaily}. For each UTC event date the code takes the most recent published reference \emph{calendar date no later than that date}, without interpolation or a future date. On nonpublication days it carries forward the preceding quote. The median quote-date lag is zero, its 95th percentile two days and its maximum four days across the selected endpoints. The same selected spells are also valued at arithmetic monthly means of their corresponding daily source and at the original OECD/FRED monthly marks to distinguish a change of frequency from a change of source.
+
+These marks are retrospective reference valuations; a published quote on the same date could have appeared after the on-chain event, and the data do not show a simultaneous tradable rate. BCRA's wholesale reference is not a demonstrated retail conversion price. An Argentine rate accessible under exchange controls can differ materially from any official series. No independently vetted parallel-market series is included, so no numerical estimate is labelled executable; daily frequency fixes the zero-within-month artefact but cannot resolve market access or intraday execution.
 
 If an executable ARS rate were $E_t^{\rm exec}=w_t E_t^{\rm official}$ for a premium $w_t>0$, the gross effect would be $1-(w_0/w_h)(E_0^{\rm official}/E_h^{\rm official})$. An unknown change in the premium can reverse even the sign of an official-rate benefit. This identity is a sensitivity argument, not an estimated parallel-rate path.
 \begin{figure*}[t]\centering
@@ -95,7 +99,7 @@ B_i^{\rm repay}(t)=P_i-fP_i-sP_i-\tfrac{g}{2}
 -D_i(t)-sD_i(t)-\tfrac{g}{2}.
 \label{eq:repay}
 \end{equation}
-Opening proceeds are assumed retained at par, with no investment return. The original collateral returns on repayment and cancels against collateral held in the no-borrowing comparator. This is neither investor profit nor welfare. Actual LCU conversions, market spread, fee funding, interest payments and taxes are unobserved. Baseline assumptions are $r=20\%$, $f=0.5\%$, $s=0.3\%$ per conversion and $g=\$40$; none is an estimated price for a deployed LCU protocol.
+Opening proceeds are assumed retained at par, with no investment return. The original collateral returns on repayment and cancels against collateral held in the no-borrowing comparator. This is neither investor profit nor welfare. Actual LCU conversions, market spread, fee funding, interest payments and taxes are unobserved. Baseline assumptions are $r=20\%$, $f=0.5\%$, $s=0.3\%$ per conversion and $g=\$40$; none is an estimated price for a deployed LCU protocol. The 20\% rate is a round, explicitly hypothetical financing-cost scenario for comparison across FX paths; it is not a historical MakerDAO stability fee, an observed peso/lira loan quote or an estimate of an equilibrium LCU rate. There is no data-supported uniquely correct baseline, so the main results show the borrowing-rate grid alongside it.
 
 \begin{table*}[htbp]
 \caption{Base scenario conventions. All amounts and rates are assumptions of the hypothetical LCU mapping, except the specified official FX series and observed MakerDAO draw amounts and dates. Changing any one convention requires rerunning the accompanying code.}
@@ -109,7 +113,7 @@ Protocol fee & 0.5\% of original USD principal, paid separately at opening and n
 Conversion friction & 0.3\% on opening principal and 0.3\% on the dollar value of accrued debt at voluntary closing. \\
 Gas budget & USD 20 at opening in either branch and USD 20 for voluntary closing; no auction gas is modelled. \\
 Loan duration & Selected clean-spell duration, or an imposed 3-, 6-, 12- or 24-month holding scenario. \\
-Currency conversion & Official ARS/USD or TRY/USD monthly average; no demonstrated executable ARS quote. \\
+Currency conversion & Daily official reference at selected observed spell endpoints; OECD/FRED monthly average for imposed horizons. Neither is a demonstrated executable borrower quote. \\
 Collateral screen & 150\% terminal threshold and initial ratios of 150, 175 or 200\%; no inferred liquidation probability. \\
 \bottomrule
 \end{tabularx}
@@ -128,23 +132,10 @@ B_i^{\rm liq}(\tau)&=P_i-fP_i-sP_i-\tfrac{g}{2}
 \end{align}
 $H$ is cash returned to the borrower; $W$ is the unrecovered loan claim. $V-H$ is the collateral value lost relative to holding it without borrowing. The borrower neither pays $D_i(\tau)$ again in cash nor repays $D_i(h)$ at the original horizon $h$. There is no voluntary exit swap or closing gas in this branch. The auction haircut and capped penalty are distinct sale effects; a different legal recourse rule would change who bears $W$.
 
-For illustration, with $P=100$, $D(\tau)=100$, collateral worth $180$, no other costs or haircut, and a 10\% penalty, recovery is $100$, penalty $10$, residual $70$, and $B^{\rm liq}=-10$. With collateral worth $60$, recovery is $60$, residual and penalty are zero, and the $40$ shortfall is an asset impairment. The corresponding borrower-side incremental amount is $100-60=40$ under the \emph{assumed nonrecourse} comparator: it transfers a loss to claimholders and is not a safe trading return. Executable checks cover surplus, shortfall, haircut, cost timing and the absence of double repayment.
-
-The available collateral shocks do not reveal $\tau$, oracle state, auction proceeds or haircut. Equation~\eqref{eq:liquidation} is an implemented \emph{conditional ledger}, but this paper does not aggregate it into an expected benefit. We therefore do not report scenario-weighted risk-adjusted medians.
-
-\subsection{Terminal collateral-ratio diagnostic}
-For a diagnostic at a hypothetical 12-month endpoint only, initial collateral worth $c_0P_i$ loses a stipulated fraction $q$ and has ratio
-\begin{equation}
-{\rm CR}_{i,12}^{\rm terminal}(q,c_0)
-=\frac{c_0P_i(1-q)}{D_i(1)},\qquad
-I_{i,12}^{\rm terminal}
-=\mathbf{1}\{{\rm CR}_{i,12}^{\rm terminal}<1.50\}.
-\label{eq:terminal}
-\end{equation}
-A breach share is the percentage of \emph{event mappings} below an assumed 150\% threshold \emph{at month 12}. It is not the probability of ever crossing the threshold or completing an auction. The generic $q$ values 0, 10, 25, 40 and 60\% are stipulated terminal declines. ETH and BTC would produce identical results under identical percentage shocks, so we attach neither asset names nor arbitrary probabilities to the grid.
+The detailed numerical surplus and shortfall checks are in the accompanying cash-flow note and executable tests. The available collateral shocks do not reveal $\tau$, oracle state, auction proceeds or haircut. Equation~\eqref{eq:liquidation} is an implemented \emph{conditional ledger}, not an estimated branch frequency or expected benefit. A deterministic terminal-ratio diagnostic is kept in the Appendix to show the boundary of the FX result without using it to modify the borrower medians.
 
 \section{Empirical design and robustness}
-Each draw is mapped to 3-, 6-, 12- and 24-month official-rate holding \emph{scenarios}; these are not measured MakerDAO durations. Clean spells use observed start/end timestamps and $t=\text{days}/365.25$, with monthly FX at the endpoints. We report event medians, positive shares, and $\sum_i B_i/\sum_iP_i$; the last is a \emph{signed amount-weighted ratio}, not an average borrower's return. Means remain in machine-readable files but can be extremely negative for tiny draws facing fixed gas.
+Each draw is mapped to 3-, 6-, 12- and 24-month official-rate holding \emph{scenarios}; these are not measured MakerDAO durations. Clean spells use observed start/end timestamps and $t=\text{days}/365.25$, with daily published FX dates at the endpoints in the primary short-spell calculation. Monthly marks are a like-for-like benchmark for the same clean sample, and the borrowing rate varies from 5\% to 120\% effective annually. We report event medians, positive shares, and $\sum_i B_i/\sum_iP_i$; the last is a \emph{signed amount-weighted ratio}, not an average borrower's return. Means remain in machine-readable files but can be extremely negative for tiny draws facing fixed gas.
 
 For dependence, we tabulate draws per urn, the chronologically first eligible draw from each urn, and an urn aggregate $100\sum_{i\in u}B_i/\sum_{i\in u}P_i$. The pooled amount-weighted result is algebraically identical for all draws and urn aggregates; this is not evidence of independence. First-draw and equal-urn summaries answer different descriptive questions. To assess concentration, we rank events by \emph{original principal size} before measuring what fraction of the full signed 12-month benefit is attributable to the largest 1, 5 and 10\% of events. Month contributions use origination month. Finally, both 12-month and clean-duration mappings are rerun with minimum draw sizes of \$1, \$100, \$1,000, \$5,000 and \$10,000.
 
@@ -153,15 +144,29 @@ The unit changes the question. An event median weights an urn with many draws ma
 \section{Results}
 \subsection{Observed durations before long holding periods}
 \begin{table*}[t]
-\caption{Observed-duration counterfactual versus fixed holding-period scenarios. All entries are percent except clean-spell counts. The observed column uses selected clean repaid durations; fixed columns map all 130,742 eligible draw events per currency. Base assumptions: effective annual rate 20\%, opening fee 0.5\%, conversion 0.3\% each way and gas \$40 round trip. Gross excludes financing and execution costs.}
+\caption{Observed-duration counterfactual versus fixed holding-period scenarios. All entries are percent except clean-spell counts. The observed column uses official daily published reference dates for selected clean repaid spells; fixed columns use OECD/FRED monthly averages for all 130,742 eligible draw events per currency. Base assumptions: effective annual rate 20\%, opening fee 0.5\%, conversion 0.3\% each way and gas \$40 round trip. Gross excludes financing and execution costs.}
 \label{tab:main}\centering\small
 \input{../tables/main.tex}
 \end{table*}
-The clean spell median is 6.95 days, and the hypothetical net median over \emph{those durations} is $-3.00\%$ for ARS and $-4.14\%$ for TRY (Table~\ref{tab:main}). Only 13.03\% and 14.55\% of mappings are net positive. Monthly-average FX makes same-month entry and exit mechanically equal even if an intra-month market move occurred. Selection for clean repayment precludes interpreting these results as a typical return or as an estimate of all-vault duration.
+The clean spell median is 6.95 days, and the hypothetical net median over \emph{those durations} at daily reference marks is $-2.86\%$ for ARS and $-4.30\%$ for TRY (Table~\ref{tab:main}). Only 9.85\% and 15.57\% of mappings are net positive. The matched-source frequency comparison below makes the short-spell measurement limitation explicit. Selection for clean repayment precludes interpreting these results as a typical return or as an estimate of all-vault duration.
 
-For comparison, with every draw timestamp artificially held open for 12 months, gross median FX effects are 24.61\% and 25.30\%, while voluntary-repayment net medians are 2.67\% and 6.59\%. Holding for 24 months yields net medians of 25.58\% and 37.19\%. This chiefly contrasts \emph{assumed horizons} with selected short spells; no typical borrower is shown to have captured the longer effect. The complete borrowing-rate grid is in \texttt{results/rate\_sensitivity.csv}.
 \begin{table*}[t]
-\caption{Selected clean-spell duration bands. Net values are hypothetical LCU financing benefits evaluated at observed spell lengths. N is the number of repaid spells per currency band, not people. Positive is the percentage with positive conditional net benefit.}
+\caption{Frequency and source check for the same 7,105 selected spells per currency at the 20\% effective annual rate. Gross and net medians and positive net shares are percent. The same-source monthly mean averages the archived daily references in each calendar month; it differs in source and definition from OECD/FRED. Daily values use the most recent published date on or before each UTC endpoint. These are reference valuations, not executed swaps.}
+\label{tab:dailyfx}\centering\small
+\input{../tables/daily_fx.tex}
+\end{table*}
+For 57.21\% of selected spells, both endpoints fall in one calendar month, so either monthly method imposes \emph{zero} gross FX movement on that subset. Daily marks show nonzero movement for 57.07\% of those same-month ARS spells and 58.62\% for TRY; some spells open and close on the same reference date. Relative to OECD/FRED monthly marks, the daily net median shifts from $-3.00\%$ to $-2.86\%$ in ARS and from $-4.14\%$ to $-4.30\%$ in TRY (Table~\ref{tab:dailyfx}). The matched-source monthly mean yields $-3.02\%$ and $-4.16\%$, showing that source and aggregation both matter. The negative median survives, but the positive share changes, and the precise daily numbers should not be read as executable outcomes.
+
+\begin{table*}[t]
+\caption{Borrowing-rate sensitivity for the 7,105 selected observed-duration spells per currency using daily official reference marks. Effective annual rates and net benefit measures are percent; the fee, conversion and gas assumptions stay fixed. Rates are illustrative scenarios, not observed offers.}
+\label{tab:dailyrate}\centering\small
+\input{../tables/daily_rate.tex}
+\end{table*}
+The round 20\% financing rate does not drive the sign of the median alone: with 5\% effective annual financing the daily medians are $-2.10\%$ and $-3.36\%$, and with 40\% they are $-4.70\%$ and $-5.45\%$ (Table~\ref{tab:dailyrate}). The cost of a particular peso or lira loan may lie outside this grid, especially if an official conversion cannot be accessed. At imposed 12-month horizons, changing the rate can reverse the sign; the full fixed-horizon grid is in \texttt{results/rate\_sensitivity.csv}.
+
+For comparison, with every draw timestamp artificially held open for 12 months under monthly OECD/FRED FX, gross median FX effects are 24.61\% and 25.30\%, while voluntary-repayment net medians are 2.67\% and 6.59\%. Holding for 24 months yields net medians of 25.58\% and 37.19\%. This chiefly contrasts \emph{assumed horizons} with selected short spells; no typical borrower is shown to have captured the longer effect.
+\begin{table*}[t]
+\caption{Selected clean-spell duration bands at daily published FX marks. Net values are hypothetical LCU financing benefits evaluated at observed spell lengths. N is the number of repaid spells per currency band, not people. Positive is the percentage with positive conditional net benefit.}
 \label{tab:duration}\centering\small
 \input{../tables/duration.tex}
 \end{table*}
@@ -178,11 +183,11 @@ The contrast is substantively larger than a rounding change: even the sign of th
 
 \subsection{Minimum size and contribution concentration}
 \begin{table*}[t]
-\caption{Effect of minimum draw size on hypothetical net benefits, under the same cost assumptions as Table~\ref{tab:main}. Observed rows refer only to selected clean, repaid spell durations. Weighted net is the sum of signed USD benefits divided by principal within each row.}
+\caption{Effect of minimum draw size on hypothetical net benefits, under the same cost assumptions as Table~\ref{tab:main}. Observed rows use selected clean, repaid spell durations and daily FX marks; 12-month rows use the monthly OECD/FRED scenario. Weighted net is the sum of signed USD benefits divided by principal within each row.}
 \label{tab:size}\centering\scriptsize
 \input{../tables/size.tex}
 \end{table*}
-At the \$1 floor, a fixed \$40 voluntary gas budget disproportionately affects tiny positions: unweighted 12-month means are $-11.85\%$ (ARS) and $-6.58\%$ (TRY), whereas at a \$100 threshold they become 5.82\% and 12.74\%. Small-position means are not typical returns. The five thresholds and exact denominators are in Table~\ref{tab:size}. Even above \$10,000, the clean-duration net medians remain negative ($-1.24\%$ and $-1.27\%$).
+At the \$1 floor, a fixed \$40 voluntary gas budget disproportionately affects tiny positions: unweighted 12-month means are $-11.85\%$ (ARS) and $-6.58\%$ (TRY), whereas at a \$100 threshold they become 5.82\% and 12.74\%. Small-position means are not typical returns. The five thresholds and exact denominators are in Table~\ref{tab:size}. Even above \$10,000, the daily clean-duration net medians remain negative; their exact values are generated in the table and CSV.
 \begin{table*}[t]
 \caption{Concentration of hypothetical 12-month net benefit among the largest draw events, ranked by original principal. Share of signed net is the top group's sum of net USD benefit divided by the full sample's signed net USD benefit. All entries are percentages, not event probabilities.}
 \label{tab:concentration}\centering\small
@@ -195,45 +200,51 @@ The largest 1\% of draws represent 64.52\% of original principal and 72.49\% (AR
 \label{fig:months}
 \end{figure*}
 
-\subsection{Terminal marks without expected-loss claims}
-\begin{table*}[t]
-\caption{Terminal-only screen for a 175\% initial ratio, 150\% threshold, 20\% effective annual rate and generic stipulated collateral declines. Each entry is the percentage of 130,742 event mappings below threshold at month 12, not a liquidation probability. No estimated shock distribution, asset-specific path, auction or borrower payoff is used.}
-\label{tab:terminal}\centering\small
-\input{../tables/terminal.tex}
-\end{table*}
-With a stipulated 25\% terminal decline, the ratio is below the assumed threshold for 59.92\% of ARS mappings and 53.41\% of TRY mappings at a 175\% initial ratio. This does not reveal whether any position was liquidated earlier or a marked price was realised. Figure~\ref{fig:terminal} shows all initial ratios and declines. There is no scenario-weighted expected loss or risk-adjusted headline.
-\begin{figure*}[t]\centering
-\includegraphics[width=.95\textwidth]{figures/terminal_screen.png}
-\caption{Terminal ratio screen over generic deterministic collateral shocks and initial ratios. ETH and BTC are not distinguished because no asset-specific price process is estimated.}
-\label{fig:terminal}
-\end{figure*}
+The optional collateral exercise in the Appendix marks an assumed 12-month ratio, conditional on stipulated declines. Because no within-horizon collateral path, sale price or branch probability is observed, it cannot revise any net-benefit estimate in this section.
 
 \section{What the comparisons identify}
-The analysis contains three distinct forms of evidence. Draw timestamps, debt changes and urn identifiers come from the public MakerDAO record; the restricted clean repayment dates permit an observed spell length, subject to trace coverage and selection. The monthly official FX paths are observations of published exchange-rate series, not observations of prices paid by these borrowers. All ARS/TRY loan balances, costs and net benefits are outcomes of a stipulated conversion and repayment rule. A positive 12-month counterfactual cannot establish that an actual borrower could remain open for 12 months, obtain official-rate ARS, or retain the original collateral throughout.
+The analysis contains three distinct forms of evidence. Draw timestamps, debt changes and urn identifiers come from the public MakerDAO record; the restricted clean repayment dates permit an observed spell length, subject to trace coverage and selection. Daily references and monthly official FX paths are published marks, not prices paid by these borrowers. All ARS/TRY loan balances, costs and net benefits are outcomes of a stipulated conversion and repayment rule. A positive 12-month counterfactual cannot establish that an actual borrower could remain open for 12 months, obtain official-rate ARS, or retain the original collateral throughout.
 
-The negative clean-duration medians sharpen this distinction. A same-month opening and closing month share one official monthly average, so the model records no within-month currency depreciation for that spell while still charging opening, conversion and closing costs. This mechanical property does not show that the market FX rate was constant on those days. Nor does selecting successfully repaid, single-draw, non-liquidated spells establish that all ETH-A vaults had such short lifetimes. It establishes a useful warning against presenting an imposed long horizon as an observed holding pattern.
+The negative clean-duration medians sharpen this distinction. At monthly frequency, a same-month opening and closing share one average and record no within-month FX movement despite charging all entry and closing costs; the daily check removes this artefact for spells spanning distinct published dates. Neither frequency demonstrates actual on-chain access to that rate. Nor does selecting successfully repaid, single-draw, non-liquidated spells establish that all ETH-A vaults had short lifetimes. An imposed long horizon is not an observed holding pattern.
 
 The cost, size and concentration checks describe where the accounting result comes from. Raising a size floor changes both the fixed gas share of principal and the composition of months and urns; it does not merely remove numerical outliers. Similarly, the fraction of a \emph{signed} aggregate attributable to the largest draws can be high even if the median event is modest. For executable gains, large trades could move the relevant market price. The current data contain neither such trading costs nor a parallel ARS quote, so we stop at a transparent conditional comparison.
 
-\section{Illustrative balance sheet, not a solvency estimate}
-Borrower-posted collateral is encumbered and remains the borrower's property until enforcement; it is \emph{not} an unrestricted issuer asset in addition to the full loan receivable. Let $A_t^{\rm loan}$ be the USD value of \emph{performing} LCU loan claims; $A_t^{\rm recovery}$ cash received from \emph{completed} collateral sales \emph{after corresponding claims are removed}; and $R_t$ unrestricted issuer reserves. Let $Q_t^{\rm redeem}$ be USD-valued redeemable tokens and $Q_t^{\rm other}$ other funding obligations. A schematic equity identity is
+\section{Accounting boundary for protocol solvency}
+The borrower benefit is not a measure of issuer capital. Borrower-posted collateral is encumbered until enforcement and is not a free asset in addition to its loan claim. Let $A_t^{\rm loan}$ be performing LCU loan claims, $A_t^{\rm recovery}$ cash after completed collateral sales with the related claim removed, $R_t$ unrestricted reserves, and $Q_t^{\rm redeem}$ and $Q_t^{\rm other}$ token redemption and other obligations. Then a schematic equity identity is
 \begin{equation}
 K_t=A_t^{\rm loan}+A_t^{\rm recovery}+R_t
 -Q_t^{\rm redeem}-Q_t^{\rm other}.
 \label{eq:balance}
 \end{equation}
-A loan undergoing liquidation is represented once: its claim is removed when cash recovery enters. Its receivable and sale proceeds cannot both be counted as free assets. At a sale, $D_i(\tau)-R_{i,\tau}=W_{i,\tau}$ writes down a loan \emph{asset}; it is not an extra liability. A penalty collected from surplus is separate fee income. A complete issuer ledger would record any corresponding token burn, liability settlement, reserve draw and equity impact. If capital cannot absorb a shortfall, claimholders may face a depeg or loss, depending on enforceable redemption rights.
-
-These inputs contain no observed LCU token liabilities, unrestricted reserves, auction clearing prices, redeemability terms or funding contracts. Equation~\eqref{eq:balance} is a framework for later measurement, not a computed $K_t$ or a finding about MakerDAO's actual balance sheet. Suggested rate adjustment, auction participants, diverse oracles and reserves are hypotheses for future design tests, not interventions evaluated here \cite{GortonZhang2023,Arner2020,BIS2023}.
+A completed sale replaces the claim with recovery; $W_{i,\tau}=D_i(\tau)-R_{i,\tau}$ writes down an \emph{asset}, while token burns or settlement must separately reduce liabilities. We have no observed LCU liabilities, unrestricted reserves or auction proceeds from which to compute $K_t$. This identity only identifies data needed for a later issuer-solvency study; reserve, oracle and auction design proposals require independent testing \cite{GortonZhang2023,Arner2020,BIS2023}.
 
 \section{Limitations and interpretation}
-Official FX averages are not necessarily executable, especially in ARS; an unknown parallel premium has no known bias direction. Clean spells are selected and have coarse monthly FX marks. Repeated draws share urn-level risks and calendar FX shocks; no causal, confidence-interval or independent-borrower claim follows. Fixed horizons are hypothetical and cannot be inferred from clean duration. Fees, gas, conversion friction and interest rates are scenarios, not observed transaction prices for a hypothetical LCU protocol. Large positions omit market impact. The liquidation ledger assumes nonrecourse, while within-horizon collateral prices, oracles, auction discounts and settlement times are unavailable. Terminal ratios cannot identify expected cash flows. Peg stability, reserve adequacy, governance backstops, taxes and legal exchange access remain outside this dataset.
+Published daily and monthly FX references are not necessarily executable, especially in ARS; an unknown parallel premium has no known bias direction. A same-date published reference may have arrived after the transaction. Clean spells are selected and the quote calendar is less granular than an intraday execution record. Repeated draws share urn-level risks and calendar FX shocks; no causal, confidence-interval or independent-borrower claim follows. Fixed horizons are hypothetical and cannot be inferred from clean duration. Fees, gas, conversion friction and interest rates are scenarios, not observed transaction prices for a hypothetical LCU protocol. Large positions omit market impact. The liquidation ledger assumes nonrecourse, while within-horizon collateral prices, oracles, auction discounts and settlement times are unavailable. Terminal ratios cannot identify expected cash flows. Peg stability, reserve adequacy, governance backstops, taxes and legal exchange access remain outside this dataset.
 
 \section{Conclusion}
-The most directly observed duration fact is that the restricted clean, repaid MakerDAO spells last a median 6.95 days. When those lengths are mapped into hypothetical local-currency debt at official monthly FX rates and illustrative costs, median net effects are negative for both ARS and TRY. Positive medians at 12 and 24 months apply to \emph{counterfactual holding periods}; amount-weighted aggregates are highly concentrated among large draws and particular months. The state-dependent liquidation ledger prevents double repayment, while the available collateral inputs justify only a terminal ratio sensitivity, not an expected borrower outcome. This is a transparent FX-financing accounting exercise and its limits; it does not validate a deployed protocol or its solvency.
+The most directly observed duration fact is that selected clean, repaid MakerDAO spells last a median 6.95 days. At hypothetical LCU debt terms and daily published FX reference marks, median net effects over those observed lengths are $-2.86\%$ in ARS and $-4.30\%$ in TRY at the illustrative 20\% effective rate. They remain negative at 5\% and 40\% rates; the monthly-frequency check also yields negative medians, though it misses within-month FX movement. Positive medians at 12 and 24 months apply to \emph{imposed holding periods}; amount-weighted aggregates are highly concentrated among large draws and particular months. Daily official marks are not demonstrated executable prices. The collateral ledger and issuer identity set accounting boundaries; they do not establish liquidation probabilities, a deployed protocol or its solvency.
+
+\section*{Appendix: deterministic terminal collateral mark}
+This auxiliary screen is separated from the empirical borrower comparisons because it has no asset-specific historical collateral paths or sale data. At an assumed 12-month endpoint, initial collateral worth $c_0P_i$ loses a stipulated fraction $q$, giving
+\begin{equation}
+{\rm CR}_{i,12}^{\rm terminal}(q,c_0)=\frac{c_0P_i(1-q)}{D_i(1)},\qquad
+I_{i,12}^{\rm terminal}=\mathbf{1}\{{\rm CR}_{i,12}^{\rm terminal}<1.50\}.
+\label{eq:terminal}
+\end{equation}
+A breach share is the percentage of \emph{event mappings} below an assumed 150\% threshold at month 12, not a probability of earlier liquidation or auction completion. The generic 0, 10, 25, 40 and 60\% declines are stipulated without shock probabilities. ETH and BTC are not distinguished because the same percentage shocks would give identical results. For a 175\% initial ratio and 25\% terminal decline, the screen flags 59.92\% of ARS and 53.41\% of TRY mappings; no expected-loss or risk-adjusted return is calculated.
+\begin{table*}[htbp]
+\caption{Auxiliary terminal-only screen for a 175\% initial ratio, 150\% threshold, 20\% effective annual rate and generic stipulated declines. Percentages refer to 130,742 event mappings per currency at month 12, not liquidation probabilities.}
+\label{tab:terminal}\centering\small
+\input{../tables/terminal.tex}
+\end{table*}
+\begin{figure*}[htbp]\centering
+\includegraphics[width=.95\textwidth]{figures/terminal_screen.png}
+\caption{Terminal ratio screen over deterministic collateral declines and initial ratios; no asset-specific price process or executed auction is estimated.}
+\label{fig:terminal}
+\end{figure*}
 
 \section*{Data and code availability}
-The public reproducibility package contains processed event and lifecycle files, archived official FX inputs, source query and checksum, executable borrower cash-flow model, tests, generated result tables, figures and build instructions. The repository is \url{https://github.com/nikorokni/inflation-driven-debt-erosion-defi}. The original public MakerDAO archive is linked with a checksum in the package rather than duplicated.
+The public reproducibility package contains processed event and lifecycle files, archived monthly and daily official FX inputs, source query and checksums, executable borrower cash-flow model, tests, generated result tables, figures and build instructions. The repository is \url{https://github.com/nikorokni/inflation-driven-debt-erosion-defi}. The original public MakerDAO archive is linked with a checksum in the package rather than duplicated.
 
 \section*{Declarations}
 \textbf{Conflict of interest.} No conflict of interest was reported.\\

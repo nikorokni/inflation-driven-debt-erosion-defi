@@ -20,7 +20,7 @@ I am sending you my point-by-point revision record. I rebuilt the borrower accou
 
 ## 2. Hypothetical horizons and observed durations
 
-**Response.** The abstract, results and conclusion now lead with the restricted clean-lifecycle check. There are 7,105 selected clean repaid spells with FX coverage per currency; the median observed duration is 6.95 days. At the illustrative 20% effective annual rate and specified costs, hypothetical median net benefits over those observed durations are -3.00% (ARS) and -4.14% (TRY). I explicitly call the positive 12- and 24-month figures imposed holding-period scenarios, not actual LCU loans or typical MakerDAO durations. The clean subset is selected and monthly FX cannot capture within-month moves; the duration-band table and figure make that clear.
+**Response.** The abstract, results and conclusion lead with the restricted clean-lifecycle check. There are 7,105 selected clean repaid spells with FX coverage per currency; the median observed duration is 6.95 days. I subsequently added archived BCRA and ECB daily reference marks because monthly FX forces zero within-month change. At the illustrative 20% effective annual rate and specified costs, hypothetical daily-reference median net benefits over those durations are -2.86% (ARS) and -4.30% (TRY); the original monthly OECD/FRED check for the same spells is -3.00% and -4.14%. I explicitly call positive 12- and 24-month figures imposed holding-period scenarios, not actual LCU loans or typical MakerDAO durations. The selected sample and reference-rate execution limitations remain explicit.
 
 ## 3. Dependence within urns
 
@@ -32,11 +32,11 @@ I am sending you my point-by-point revision record. I rebuilt the borrower accou
 
 ## 5. Minimum economically meaningful draw sizes
 
-**Response.** I reran both the 12-month and clean-duration mappings with minimum draw sizes of USD 1, 100, 1,000, 5,000 and 10,000. The manuscript table gives counts, medians and weighted results; results/position_size_sensitivity.csv adds means and positive shares. At the USD 1 floor, unweighted 12-month means are -11.85% and -6.58%; above USD 100 they are 5.82% and 12.74%. Fixed gas causes the extreme tiny-position percentages. Even above USD 10,000, clean-duration median net effects remain negative (-1.24% and -1.27%).
+**Response.** I reran both the 12-month and daily-FX clean-duration mappings with minimum draw sizes of USD 1, 100, 1,000, 5,000 and 10,000. The manuscript table gives counts, medians and weighted results; results/position_size_sensitivity.csv adds means and positive shares. At the USD 1 floor, unweighted 12-month means are -11.85% and -6.58%; above USD 100 they are 5.82% and 12.74%. Fixed gas causes the extreme tiny-position percentages. Even above USD 10,000, daily clean-duration median net effects remain negative (-1.11% and -1.16%).
 
 ## 6. Collateral assumptions and shock probabilities
 
-**Response.** I chose the narrower alternative you suggested. Section 3 defines a *terminal collateral-ratio screen* using generic deterministic percentage declines. Results are only the share of event mappings whose month-12 mark is below an assumed threshold, not a probability of liquidation or an executed sale. I removed ETH/BTC labels from identical-shock results, removed arbitrary 40/30/20/10 scenario weights and the expected-loss output, and withdrew the old risk-adjusted claims. Asset-specific paths, supported probabilities, oracle timing and auction settlement would be needed to calculate expected outcomes. The conditional liquidation ledger is provided without pretending terminal marks identify its event time.
+**Response.** I chose the narrower alternative you suggested. The Appendix defines a *terminal collateral-ratio screen* using generic deterministic percentage declines. Results are only the share of event mappings whose month-12 mark is below an assumed threshold, not a probability of liquidation or an executed sale. I removed ETH/BTC labels from identical-shock results, removed arbitrary 40/30/20/10 scenario weights and the expected-loss output, and withdrew the old risk-adjusted claims. Asset-specific paths, supported probabilities, oracle timing and auction settlement would be needed to calculate expected outcomes. The conditional liquidation ledger is provided without pretending terminal marks identify its event time.
 
 ## 7. Fees, rate, conversion and gas
 
@@ -44,11 +44,11 @@ I am sending you my point-by-point revision record. I rebuilt the borrower accou
 
 ## 8. Official versus executable ARS
 
-**Response.** All ARS estimates are now explicitly limited to an *official-rate counterfactual*. If an executable rate is the official rate multiplied by an unknown premium $w_t$, the executable gross expression becomes $1-(w_0/w_h)(E_0^{official}/E_h^{official})$. A change in that premium can even reverse the sign. I have not substituted an unverified parallel-rate history. An adjacent-month FX check does not resolve official-versus-executable access. A separately sourced and audited parallel-market series would be needed.
+**Response.** All ARS estimates are explicitly limited to an *official-rate counterfactual*. A BCRA daily wholesale reference is now archived for the short spells; it is still not an executable retail or parallel rate. If an executable rate is the official rate multiplied by an unknown premium $w_t$, the executable gross expression becomes $1-(w_0/w_h)(E_0^{official}/E_h^{official})$. A change in that premium can even reverse the sign. I have not substituted an unverified parallel-rate history. An adjacent-month or daily official FX check does not resolve market access. A separately sourced and audited parallel-market series would be needed.
 
 ## 9. Balance sheet and loss absorption
 
-**Response.** Section 6 replaces the previous equation with a restricted equity identity for performing loan claims, cash from *settled* collateral recovery, unrestricted reserves, redeemable token liabilities and other funding obligations. Borrower-posted collateral is encumbered, not extra unrestricted issuer capital. A shortfall between accrued debt and sale recovery writes down a loan asset; it is not another liability. I state that token burn, liability settlement and reserve/equity effects require a complete issuer ledger. No solvency estimate follows without observed LCU liabilities and issuer reserves.
+**Response.** The manuscript replaces the previous equation with a restricted equity identity for performing loan claims, cash from *settled* collateral recovery, unrestricted reserves, redeemable token liabilities and other funding obligations. Borrower-posted collateral is encumbered, not extra unrestricted issuer capital. A shortfall between accrued debt and sale recovery writes down a loan asset; it is not another liability. Token burn, liability settlement and reserve/equity effects require a complete issuer ledger. No solvency estimate follows without observed LCU liabilities and issuer reserves.
 
 ## 10. Empirical results versus design ideas
 
@@ -60,7 +60,7 @@ I am sending you my point-by-point revision record. I rebuilt the borrower accou
 
 ## 12. Formatting and numerical consistency
 
-**Response.** I rebuilt the PDF with larger figures, readable tables with stated denominators, consistent terminology and two-decimal rounding. Six results tables are generated from CSV outputs; the sample-construction and cost-assumption tables refer to tracked input records. I retained the supported background and methods material, with an expanded explanation of what the counterfactuals identify. A validation sheet maps every headline number to its machine-readable source. I rendered the pages to inspect clipping and page balance, checked equation rendering and verified the displayed values against the generated CSVs.
+**Response.** I rebuilt the PDF with larger figures, readable tables with stated denominators, consistent terminology and two-decimal rounding. Eight results tables are generated from CSV outputs; the sample-construction and cost-assumption tables refer to tracked input records. I retained the supported background and methods material, with an expanded explanation of what the counterfactuals identify. A validation sheet maps every headline number to its machine-readable source. I rendered the pages to inspect clipping and page balance, checked equation rendering and verified the displayed values against the generated CSVs.
 
 I have retained the boundaries that the data cannot resolve: no observed ARS/TRY vault, verified executable ARS parallel-rate series, within-horizon collateral path or complete issuer balance sheet. I hope the revision makes both the corrected findings and those limits clear.
 

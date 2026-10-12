@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 
 from borrower_cashflows import CostAssumptions, accrued_debt_usd, survivor_cashflow
+from daily_fx import asof_published_quote, load_daily_references, same_source_monthly
 
 HORIZONS = (3, 6, 12, 24)
 RATES = (0.05, 0.10, 0.20, 0.40, 0.80, 1.20)
@@ -100,6 +101,46 @@ def prepare_lifecycles(lifecycles: pd.DataFrame, lookup: dict[pd.Period, float])
     clean["fx_close"] = clean.end_month.map(lookup)
     clean = clean.dropna(subset=["fx_start", "fx_close"]).reset_index(drop=True)
     return with_cashflows(clean, clean.duration_days.to_numpy() / 365.25)
+
+
+def observed_fx_comparison(monthly: pd.DataFrame, daily: pd.DataFrame, currency: str
+                           ) -> tuple[pd.DataFrame, list[dict], list[dict], dict]:
+    """Use the exact same selected spells for FRED, matched-source monthly, daily."""
+    source = daily[daily.currency == currency].reset_index(drop=True)
+    candidates = [("OECD/FRED monthly", monthly)]
+    alternative_monthly = monthly.copy()
+    lookup = same_source_monthly(source)
+    alternative_monthly["fx_start"] = alternative_monthly.start_month.map(lookup)
+    alternative_monthly["fx_close"] = alternative_monthly.end_month.map(lookup)
+    if alternative_monthly[["fx_start", "fx_close"]].isna().any().any():
+        raise ValueError("The matched daily-source monthly comparison lacks FX coverage")
+    candidates.append(("Same-source monthly mean", with_cashflows(
+        alternative_monthly, alternative_monthly.duration_days.to_numpy() / 365.25)))
+
+    daily_frame = monthly.copy()
+    daily_frame["fx_start"], start_lag = asof_published_quote(source, daily_frame.start_dt)
+    daily_frame["fx_close"], end_lag = asof_published_quote(source, daily_frame.end_dt)
+    daily_frame = with_cashflows(daily_frame, daily_frame.duration_days.to_numpy() / 365.25)
+    candidates.append(("Official daily reference", daily_frame))
+    same_month = daily_frame.start_month.eq(daily_frame.end_month)
+    lag = np.concatenate([start_lag, end_lag])
+    diagnostics = {
+        "currency": currency, "same_month_spells_pct": 100 * same_month.mean(),
+        "same_month_daily_nonzero_gross_pct": 100 * (daily_frame.loc[same_month, "gross_usd"] != 0).mean(),
+        "daily_quote_lag_median_days": float(np.median(lag)),
+        "daily_quote_lag_p95_days": float(np.percentile(lag, 95)),
+        "daily_quote_lag_max_days": int(lag.max()),
+    }
+    comparisons = []
+    for name, frame in candidates:
+        comparisons.append({**metric(frame, name, currency=currency, horizon="observed"), **diagnostics})
+    rates = []
+    for rate in RATES:
+        cash = daily_frame if rate == .20 else with_cashflows(
+            daily_frame, daily_frame.duration_days.to_numpy() / 365.25, rate)
+        rates.append({**metric(cash, "Official daily reference", currency=currency, horizon="observed"),
+                      "annual_effective_rate_pct": 100 * rate})
+    return daily_frame, comparisons, rates, diagnostics
 
 
 def urn_counts(draws: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -222,11 +263,12 @@ def tex_tabular(path: Path, headings: list[str], rows: list[list[object]], align
 
 
 def save_tables(output: Path, summary: pd.DataFrame, dep: pd.DataFrame, size: pd.DataFrame,
-                concentration: pd.DataFrame, duration: pd.DataFrame, terminal: pd.DataFrame) -> None:
+                concentration: pd.DataFrame, duration: pd.DataFrame, terminal: pd.DataFrame,
+                comparisons: pd.DataFrame, daily_rate: pd.DataFrame) -> None:
     output.mkdir(parents=True, exist_ok=True)
     rows = []
     for c in CURRENCIES:
-        d = summary[(summary.currency == c) & (summary["sample"] == "Clean observed duration")].iloc[0]
+        d = summary[(summary.currency == c) & (summary.horizon == "observed")].iloc[0]
         m12 = summary[(summary.currency == c) & (summary.horizon == "12m")].iloc[0]
         m24 = summary[(summary.currency == c) & (summary.horizon == "24m")].iloc[0]
         rows.append([c, f"{int(d.n):,}", f"{d.median_net_pct:.2f}", f"{m12.median_gross_pct:.2f}",
@@ -258,6 +300,16 @@ def save_tables(output: Path, summary: pd.DataFrame, dep: pd.DataFrame, size: pd
                 ["FX", "Price decline", "Terminal breach share"],
                 [[r.currency, f"{r.terminal_price_decline_pct:.0f}%",
                   f"{r.terminal_below_150pct_share:.2f}"] for r in shown.itertuples()], "lrr")
+    tex_tabular(output / "daily_fx.tex",
+                ["FX", "Endpoint marks", "$N$", "Gross median", "Net median", "Net positive"],
+                [[r.currency, r.sample, f"{int(r.n):,}", f"{r.median_gross_pct:.2f}",
+                  f"{r.median_net_pct:.2f}", f"{r.positive_net_pct:.2f}"]
+                 for r in comparisons.itertuples()], "llrrrr")
+    chosen = daily_rate[daily_rate.annual_effective_rate_pct.isin([5, 10, 20, 40, 80, 120])]
+    tex_tabular(output / "daily_rate.tex",
+                ["FX", "Annual rate", "Median net", "Net positive"],
+                [[r.currency, f"{r.annual_effective_rate_pct:.0f}%", f"{r.median_net_pct:.2f}",
+                  f"{r.positive_net_pct:.2f}"] for r in chosen.itertuples()], "lrrr")
 
 
 def save_figures(fx: pd.DataFrame, durations: dict[str, pd.DataFrame], monthly: pd.DataFrame,
@@ -327,6 +379,9 @@ def run(args: argparse.Namespace) -> dict:
     draws = pd.read_csv(args.draws, low_memory=False)
     lifecycles = pd.read_csv(args.lifecycles, low_memory=False)
     fx = load_fx({"ARS": args.ars_fx, "TRY": args.try_fx})
+    daily = load_daily_references(args.bcra_daily, args.ecb_daily)
+    daily.assign(date=daily.date.dt.strftime("%Y-%m-%d")).to_csv(
+        args.output_dir / "fx_daily_reference.csv", index=False, float_format="%.12f")
     fx.assign(month=fx.month.astype(str)).to_csv(args.output_dir / "fx_monthly_oecd_fred.csv", index=False)
     count_frame, count_dist = urn_counts(draws)
     count_frame.to_csv(args.output_dir / "urn_draw_counts.csv", index=False)
@@ -334,6 +389,7 @@ def run(args: argparse.Namespace) -> dict:
 
     summaries, rate_rows, dep_rows, urn_rows, top_rows, months, size_rows = [], [], [], [], [], [], []
     duration_parts, terminal_rows, duration_frames, fixed12 = [], [], {}, {}
+    comparison_rows, daily_rate_rows, quote_diagnostics = [], [], {}
     for currency in CURRENCIES:
         lookup = fx_lookup(fx, currency)
         for h in HORIZONS:
@@ -356,10 +412,16 @@ def run(args: argparse.Namespace) -> dict:
         months.append(month_rows)
         size_rows.extend(thresholds(twelve, currency, "Fixed 12m"))
         terminal_rows.extend(terminal_screen(twelve, currency))
-        observed = prepare_lifecycles(lifecycles, lookup)
+        monthly_observed = prepare_lifecycles(lifecycles, lookup)
+        observed, comparisons, observed_rates, diagnostics = observed_fx_comparison(
+            monthly_observed, daily, currency)
+        comparison_rows.extend(comparisons)
+        daily_rate_rows.extend(observed_rates)
+        quote_diagnostics[currency] = diagnostics
         duration_frames[currency] = observed
-        summaries.append(metric(observed, "Clean observed duration", currency=currency, horizon="observed"))
-        size_rows.extend(thresholds(observed, currency, "Clean observed duration"))
+        summaries.append(metric(observed, "Clean observed duration (official daily reference)",
+                                currency=currency, horizon="observed"))
+        size_rows.extend(thresholds(observed, currency, "Clean observed duration, daily FX"))
         duration_parts.append(duration_bins(observed, currency))
     summary = pd.DataFrame(summaries)
     rate = pd.DataFrame(rate_rows)
@@ -370,6 +432,8 @@ def run(args: argparse.Namespace) -> dict:
     size = pd.DataFrame(size_rows)
     duration = pd.concat(duration_parts, ignore_index=True)
     terminal = pd.DataFrame(terminal_rows)
+    comparison = pd.DataFrame(comparison_rows)
+    daily_rate = pd.DataFrame(daily_rate_rows)
     for name, data in {
         "main_summary.csv": summary,
         "rate_sensitivity.csv": rate,
@@ -380,18 +444,22 @@ def run(args: argparse.Namespace) -> dict:
         "position_size_sensitivity.csv": size,
         "observed_duration_bands.csv": duration,
         "terminal_collateral_ratio_screen.csv": terminal,
+        "observed_fx_frequency_comparison.csv": comparison,
+        "observed_daily_rate_sensitivity.csv": daily_rate,
     }.items():
         data.to_csv(args.output_dir / name, index=False)
-    save_tables(args.latex_table_dir, summary, dep, size, top, duration, terminal)
+    save_tables(args.latex_table_dir, summary, dep, size, top, duration, terminal,
+                comparison, daily_rate)
     save_figures(fx, duration_frames, monthly, terminal, args.figure_dir)
     metadata = {
         "draw_events": len(draws), "unique_urns": int(draws.urn.nunique()),
         "total_drawn_dai": float(draws.borrowed_dai.sum()),
         "observed_clean_spells_per_currency": {c: len(duration_frames[c]) for c in CURRENCIES},
         "median_observed_days_per_currency": {c: float(duration_frames[c].duration_days.median()) for c in CURRENCIES},
+        "observed_fx_frequency_diagnostics": quote_diagnostics,
         "conditional_liquidation_cashflows": "Implemented and tested separately; not estimated from terminal-only shocks",
         "risk_adjusted_median_removed": True,
-        "ars_interpretation": "Official monthly FX counterfactual only; no executable ARS series",
+        "ars_interpretation": "Official reference-rate counterfactual only; no executable ARS series",
         "fee_timing": "Paid in USD at origination; not financed",
         "gas_scope": "Half at opening and half at voluntary close; only opening charged to borrower upon liquidation",
     }
@@ -406,6 +474,8 @@ def main() -> None:
     p.add_argument("--lifecycles", type=Path, default=root/"data/processed/makerdao_eth_a_lifecycles.csv")
     p.add_argument("--ars-fx", type=Path, default=root/"data/raw_fx/ars_usd_fred.csv")
     p.add_argument("--try-fx", type=Path, default=root/"data/raw_fx/try_usd_fred.csv")
+    p.add_argument("--bcra-daily", type=Path, default=root/"data/raw_fx/bcra_com3500.xls")
+    p.add_argument("--ecb-daily", type=Path, default=root/"data/raw_fx/ecb_eurofxref_hist.zip")
     p.add_argument("--output-dir", type=Path, default=root/"results")
     p.add_argument("--figure-dir", type=Path, default=root/"figures")
     p.add_argument("--latex-table-dir", type=Path, default=root/"tables")
