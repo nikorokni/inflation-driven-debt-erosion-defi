@@ -7,13 +7,17 @@ TRY official monthly FX,CCUSMA02TRM618N,observed official macro series,OECD Main
 ARS official daily reference,BCRA A3500 wholesale ARS per USD,observed published reference,archived BCRA workbook and checksum in SOURCES.md; not executable retail or parallel ARS
 TRY daily reference cross,ECB TRY per EUR divided by USD per EUR,derived from observed references,archived ECB ZIP and checksum in SOURCES.md; informational marks
 Observed FX endpoint,latest reference calendar date on or before UTC event date,valuation convention,possible same-day publication after event; no future quote or intraday price
+Earlier published FX check,strictly previous published calendar date at both selected spell endpoints,valuation sensitivity,avoids same-day publication ambiguity but not an executable quote
 Observed matched-source monthly,arithmetic mean of daily published reference within calendar month,frequency comparison,not identical construction to OECD monthly series
 Executable ARS rate,unavailable,unobserved,do not equate official FX with parallel or accessible price
+Relative ARS accessible-rate wedge,exit-to-entry multiplier 0.80 1.00 1.10 1.25 1.50,illustrative algebraic sensitivity,not an observed parallel-market path; absolute constant wedge cancels
 Fixed horizons,3 6 12 24 months,imposed holding scenarios,not observed spell durations
+Same-start fixed horizons,7105 selected clean-spell starts revalued at imposed monthly endpoints,descriptive sample comparison,compare with all draws using same FX source and horizon
 Borrowing annual rate,20 percent effective annual baseline plus 5 10 40 80 120 percent sensitivity,illustrative assumption,not estimated deployed LCU protocol rate
 Protocol fee,0.5 percent of origination USD principal paid externally at opening,illustrative assumption,not financed
 Conversion friction,0.3 percent opening and 0.3 percent voluntary closing,illustrative assumption,not an observed executable spread
 Gas,USD 20 opening and USD 20 voluntary closing,illustrative assumption,not transaction-level measured
+Gas and conversion grid,USD 0 20 40 80 total gas and 0 0.3 1 percent per swap,illustrative assumption sensitivity,all 12 combinations for each currency and sample
 Collateral initial ratio,150 175 200 percent,illustrative terminal screen,not observed LCU vault states
 Terminal collateral decline,0 10 25 40 60 percent,illustrative deterministic grid,no shock probabilities inferred
 Threshold,150 percent of accrued debt,illustrative terminal screen,not actual auction observation

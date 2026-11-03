@@ -331,14 +331,13 @@ def save_figures(fx: pd.DataFrame, durations: dict[str, pd.DataFrame], monthly: 
     plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(9, 4.5))
-    for c in CURRENCIES:
-        vals = durations[c].duration_days.to_numpy()
-        bins = np.logspace(-3, 3.5, 70)
-        ax.hist(vals, bins=bins, histtype="step", linewidth=2, label=c, color=COLORS[c])
+    # Both FX mappings use precisely the same selected spell durations.
+    vals = durations["ARS"].duration_days.to_numpy()
+    bins = np.logspace(-3, 3.5, 70)
+    ax.hist(vals, bins=bins, histtype="step", linewidth=2, color=COLORS["ARS"])
     ax.set_xscale("log")
     ax.set_xlabel("Observed clean-spell duration (days; logarithmic)")
     ax.set_ylabel("Number of reconstructed spells")
-    ax.legend(frameon=False)
     fig.tight_layout()
     fig.savefig(out / "observed_duration.png")
     plt.close(fig)

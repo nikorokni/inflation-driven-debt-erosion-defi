@@ -13,6 +13,7 @@ fi
 python "$replication_root/tests/test_borrower_cashflows.py"
 python "$replication_root/tests/test_daily_fx.py"
 python "$replication_root/analysis/reproduce_analysis.py"
+python "$replication_root/analysis/extended_robustness.py"
 
 if command -v latexmk >/dev/null 2>&1; then
   (cd "$replication_root/manuscript" && latexmk -pdf -interaction=nonstopmode -halt-on-error main.tex)

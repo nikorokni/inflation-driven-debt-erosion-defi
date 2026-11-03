@@ -40,7 +40,8 @@ def load_daily_references(bcra_xls: Path, ecb_zip: Path) -> pd.DataFrame:
         ["currency", "date"]).reset_index(drop=True)
 
 
-def asof_published_quote(daily: pd.DataFrame, timestamps: pd.Series) -> tuple[np.ndarray, np.ndarray]:
+def asof_published_quote(daily: pd.DataFrame, timestamps: pd.Series,
+                        *, strictly_prior_date: bool = False) -> tuple[np.ndarray, np.ndarray]:
     """Most recent reference date no later than each UTC calendar date.
 
     Rates are retrospective valuation marks: the publication time within a
@@ -49,7 +50,10 @@ def asof_published_quote(daily: pd.DataFrame, timestamps: pd.Series) -> tuple[np
     dates = daily.date.to_numpy(dtype="datetime64[D]")
     values = daily.local_per_usd.to_numpy(dtype=float)
     event_dates = pd.to_datetime(timestamps, utc=True).dt.tz_convert(None).to_numpy(dtype="datetime64[D]")
-    indices = np.searchsorted(dates, event_dates, side="right") - 1
+    # A strictly previous calendar date prevents a same-day publication from
+    # being used before its (unobserved) intraday release time.
+    indices = np.searchsorted(dates, event_dates,
+                              side="left" if strictly_prior_date else "right") - 1
     if (indices < 0).any() or (event_dates > dates[-1]).any():
         raise ValueError("Event has no applicable archived FX quote")
     lag_days = (event_dates - dates[indices]).astype("timedelta64[D]").astype(int)

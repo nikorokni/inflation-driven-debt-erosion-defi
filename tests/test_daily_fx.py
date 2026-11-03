@@ -25,6 +25,9 @@ def run() -> None:
         assert lag[0] == 0 and lag[1] >= 1 and lag[2] <= 3
         assert quotes[0] == quotes[1]
         assert np.isfinite(quotes).all()
+        prior, prior_lag = asof_published_quote(part, trial, strictly_prior_date=True)
+        assert (prior_lag >= 1).all() and np.isfinite(prior).all()
+        assert prior_lag[0] >= 1 and prior_lag[1] >= 1
     # More than one within-month reference quote must be present for each
     # currency, unlike one monthly average applied twice within that month.
     july = data[(data.date >= "2023-07-01") & (data.date < "2023-08-01")]
