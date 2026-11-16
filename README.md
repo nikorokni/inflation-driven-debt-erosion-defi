@@ -1,7 +1,7 @@
 # FX-Driven Debt Erosion in Local-Currency DeFi Lending
 
 **Counterfactual evidence from MakerDAO ETH-A draws**
-Niko Rokni Lamouki, Salma Soofiyan and Julie Wall
+Niko Rokni Lamouki and Salma Soofiyan
 
 [Manuscript](manuscript/main.pdf) · [Annotated-manuscript response](documentation/ANNOTATED_MANUSCRIPT_RESPONSE.md) · [Earlier response for Salma](documentation/RESPONSE_TO_SALMA.pdf) · [Conditional cash-flow note](documentation/BORROWER_CASHFLOW_MODEL.pdf)
 
